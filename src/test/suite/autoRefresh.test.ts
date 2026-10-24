@@ -38,8 +38,12 @@ suite('Extension automatic refresh', () => {
             },
           };
           case './core': return { StructMapService: class {} };
+          case './vscode':
           case './vscode/providers/StructMapTreeProvider': return {
             StructMapTreeProvider: class { refresh() { refreshes++; } },
+            ViewStateManager: class { getState() { return { showTypes: true, showRoot: true, treeStyle: 'unicode' }; } },
+            NodeNavigator: class {},
+            registerCommands: () => {},
           };
           default: throw new Error(`Unexpected import: ${id}`);
         }

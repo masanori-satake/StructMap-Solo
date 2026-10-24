@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { isParseError, isParseSuccess, ParseError, ParseErrorCode, StructMapService, StructNode } from '../../core';
+import { DEFAULT_VIEW_STATE, ViewState, ViewStateManager } from '../state/ViewState';
 
 /**
  * Gets the ThemeIcon corresponding to a StructNode's nodeType according to requirements.
@@ -40,6 +41,29 @@ function getErrorDisplayLabel(error: ParseError): string {
 }
 
 /**
+ * Formats a node's display label based on ViewState.
+ */
+function formatNodeLabel(node: StructNode, viewState: ViewState): string {
+  if (viewState.showTypes) {
+    if (node.nodeType === 'array' || node.nodeType === 'object') {
+      return `${node.name} : ${node.nodeType}`;
+    }
+    if (node.nodeType === 'value') {
+      return node.valueType ? `${node.name} : ${node.valueType}` : node.name;
+    }
+    return node.name;
+  } else {
+    if (node.nodeType === 'array') {
+      return `${node.name} []`;
+    }
+    if (node.nodeType === 'object') {
+      return node.children.length === 0 ? `${node.name} {}` : node.name;
+    }
+    return node.name;
+  }
+}
+
+/**
  * Represents an item in the StructMap TreeView, wrapping either a StructNode or an error message.
  */
 export class StructTreeItem extends vscode.TreeItem {
@@ -49,22 +73,26 @@ export class StructTreeItem extends vscode.TreeItem {
   /**
    * Constructs a StructTreeItem for a StructNode.
    */
-  constructor(node: StructNode);
+  constructor(node: StructNode, viewState?: ViewState);
   /**
    * Constructs an error/status StructTreeItem with a display message and optional tooltip.
    */
   constructor(label: string, tooltip?: string);
-  constructor(nodeOrLabel: StructNode | string, tooltip?: string) {
+  constructor(nodeOrLabel: StructNode | string, tooltipOrViewState?: string | ViewState) {
     if (typeof nodeOrLabel === 'string') {
       super(nodeOrLabel, vscode.TreeItemCollapsibleState.None);
       this.isError = true;
       this.iconPath = new vscode.ThemeIcon('error');
-      if (tooltip) {
-        this.tooltip = tooltip;
+      if (typeof tooltipOrViewState === 'string') {
+        this.tooltip = tooltipOrViewState;
       }
       this.contextValue = 'structMapErrorItem';
     } else {
       const node = nodeOrLabel;
+      const viewState = (typeof tooltipOrViewState === 'object' && tooltipOrViewState)
+        ? tooltipOrViewState
+        : DEFAULT_VIEW_STATE;
+
       const hasChildren = node.children && node.children.length > 0;
       let collapsibleState = vscode.TreeItemCollapsibleState.None;
 
@@ -76,7 +104,8 @@ export class StructTreeItem extends vscode.TreeItem {
         }
       }
 
-      super(node.name, collapsibleState);
+      const displayLabel = formatNodeLabel(node, viewState);
+      super(displayLabel, collapsibleState);
       this.node = node;
       this.isError = false;
       this.iconPath = getIconForNodeType(node.nodeType);
@@ -85,6 +114,13 @@ export class StructTreeItem extends vscode.TreeItem {
       if (node.nodeType === 'value' && node.value !== undefined) {
         this.description = String(node.value);
       }
+
+      // Command for jump to node in active editor
+      this.command = {
+        command: 'structmap-solo.jumpToNode',
+        title: 'Jump to Node',
+        arguments: [this.node],
+      };
     }
   }
 
@@ -108,7 +144,8 @@ export class StructMapTreeProvider implements vscode.TreeDataProvider<StructTree
   constructor(
     private readonly structMapService: StructMapService,
     private readonly getActiveTextEditor: () => vscode.TextEditor | undefined = () =>
-      vscode.window.activeTextEditor
+      vscode.window.activeTextEditor,
+    private readonly viewStateManager?: ViewStateManager
   ) {}
 
   /**
@@ -129,6 +166,10 @@ export class StructMapTreeProvider implements vscode.TreeDataProvider<StructTree
    * Returns the children for a given element or the root items if element is undefined.
    */
   public getChildren(element?: StructTreeItem): vscode.ProviderResult<StructTreeItem[]> {
+    const viewState = this.viewStateManager
+      ? this.viewStateManager.getState()
+      : DEFAULT_VIEW_STATE;
+
     if (!element) {
       const activeEditor = this.getActiveTextEditor();
       if (!activeEditor || !activeEditor.document) {
@@ -146,7 +187,13 @@ export class StructMapTreeProvider implements vscode.TreeDataProvider<StructTree
       }
 
       if (isParseSuccess(parseResult)) {
-        return [new StructTreeItem(parseResult.tree.root)];
+        if (viewState.showRoot) {
+          return [new StructTreeItem(parseResult.tree.root, viewState)];
+        } else {
+          return parseResult.tree.root.children.map(
+            (child) => new StructTreeItem(child, viewState)
+          );
+        }
       }
 
       return [StructTreeItem.createError('Parse Error')];
@@ -156,6 +203,6 @@ export class StructMapTreeProvider implements vscode.TreeDataProvider<StructTree
       return [];
     }
 
-    return element.node.children.map((child) => new StructTreeItem(child));
+    return element.node.children.map((child) => new StructTreeItem(child, viewState));
   }
 }
