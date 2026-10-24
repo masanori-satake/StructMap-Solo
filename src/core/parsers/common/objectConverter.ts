@@ -27,7 +27,8 @@ function convertValueToNode(
   value: unknown,
   key: string,
   parentPath: string[],
-  createId: () => string
+  createId: () => string,
+  ancestors: WeakSet<object>
 ): StructNode {
   const currentPath = [...parentPath, key];
 
@@ -47,36 +48,45 @@ function convertValueToNode(
     };
   }
 
-  if (Array.isArray(value)) {
-    const children: StructNode[] = [];
-    if (value.length > 0) {
-      // First strategy - process only the first element
-      children.push(
-        convertValueToNode(value[0], '[0]', currentPath, createId)
-      );
+  if (ancestors.has(value)) {
+    throw new Error('Cannot convert circular reference to StructTree');
+  }
+
+  ancestors.add(value);
+  try {
+    if (Array.isArray(value)) {
+      const children: StructNode[] = [];
+      if (value.length > 0) {
+        // First strategy - process only the first element
+        children.push(
+          convertValueToNode(value[0], '[0]', currentPath, createId, ancestors)
+        );
+      }
+      return {
+        id: createId(),
+        name: key,
+        path: currentPath,
+        nodeType: 'array',
+        children
+      };
     }
+
+    // Object
+    const obj = value as Record<string, unknown>;
+    const children: StructNode[] = Object.keys(obj).map((childKey) =>
+      convertValueToNode(obj[childKey], childKey, currentPath, createId, ancestors)
+    );
+
     return {
       id: createId(),
       name: key,
       path: currentPath,
-      nodeType: 'array',
+      nodeType: 'object',
       children
     };
+  } finally {
+    ancestors.delete(value);
   }
-
-  // Object
-  const obj = value as Record<string, unknown>;
-  const children: StructNode[] = Object.keys(obj).map((childKey) =>
-    convertValueToNode(obj[childKey], childKey, currentPath, createId)
-  );
-
-  return {
-    id: createId(),
-    name: key,
-    path: currentPath,
-    nodeType: 'object',
-    children
-  };
 }
 
 /**
@@ -86,6 +96,7 @@ function convertValueToNode(
  * @param fileName File name to be set as the root node name.
  * @param sourceFormat Document format ('json' | 'yaml' | 'markdown').
  * @returns Generated StructTree containing document structure.
+ * @throws Error if a circular reference is encountered during conversion.
  */
 export function convertObjectToStructTree(
   parsed: unknown,
@@ -94,6 +105,9 @@ export function convertObjectToStructTree(
 ): StructTree {
   let idCounter = 0;
   const createId = () => `node-${idCounter++}`;
+  const ancestors = new WeakSet<object>(
+    parsed !== null && typeof parsed === 'object' ? [parsed] : []
+  );
 
   const rootPath = [fileName];
 
@@ -109,18 +123,18 @@ export function convertObjectToStructTree(
     rootNode.children = [];
   } else if (parsed === null || typeof parsed !== 'object' || parsed instanceof Date) {
     rootNode.children = [
-      convertValueToNode(parsed, 'value', rootPath, createId)
+      convertValueToNode(parsed, 'value', rootPath, createId, ancestors)
     ];
   } else if (Array.isArray(parsed)) {
     if (parsed.length > 0) {
       rootNode.children = [
-        convertValueToNode(parsed[0], '[0]', rootPath, createId)
+        convertValueToNode(parsed[0], '[0]', rootPath, createId, ancestors)
       ];
     }
   } else {
     const obj = parsed as Record<string, unknown>;
     rootNode.children = Object.keys(obj).map((key) =>
-      convertValueToNode(obj[key], key, rootPath, createId)
+      convertValueToNode(obj[key], key, rootPath, createId, ancestors)
     );
   }
 

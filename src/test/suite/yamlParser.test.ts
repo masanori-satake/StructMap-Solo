@@ -138,6 +138,55 @@ api:
     assert.strictEqual(hostChild.value, 'localhost');
   });
 
+  test('Rejects circular aliases in objects and arrays, including document roots', () => {
+    for (const content of [
+      '&root {self: *root}',
+      '&root [*root]',
+      'item: &item {self: *item}',
+      'items: &items [*items]',
+      'item: &item {children: [{parent: *item}]}',
+      '&root {items: [*root]}',
+      '&root [{parent: *root}]'
+    ]) {
+      assert.throws(() => parser.parse(content, 'circular.yaml'),
+        /Cannot convert circular reference to StructTree/, content);
+    }
+
+    assert.strictEqual(parser.parse('title: valid').root.children[0].value, 'valid');
+  });
+
+  test('Expands shared object and array aliases independently', () => {
+    const content = `
+original: &obj {tags: &tags [開発, ビジュアル]}
+copy: *obj
+tags: *tags
+`;
+    const [original, copy, tags] = parser.parse(content, 'shared.yaml').root.children;
+
+    assert.strictEqual(original.nodeType, 'object');
+    assert.strictEqual(copy.nodeType, 'object');
+    assert.strictEqual(tags.nodeType, 'array');
+    assert.strictEqual(original.children[0].children[0].value, '開発');
+    assert.strictEqual(copy.children[0].children[0].value, '開発');
+    assert.strictEqual(tags.children[0].value, '開発');
+    assert.deepStrictEqual(copy.children[0].children[0].path,
+      ['shared.yaml', 'copy', 'tags', '[0]']);
+    assert.deepStrictEqual(tags.children[0].path, ['shared.yaml', 'tags', '[0]']);
+    assert.notStrictEqual(original.id, copy.id);
+    assert.notStrictEqual(original.children[0].id, copy.children[0].id);
+    assert.notStrictEqual(copy.children[0].id, tags.id);
+  });
+
+  test('Preserves the first-element strategy when later elements contain circular aliases', () => {
+    const rootArray = parser.parse('&items [42, *items]').root.children;
+    const nestedArray = parser.parse('items: &items [42, *items]').root.children[0].children;
+
+    for (const children of [rootArray, nestedArray]) {
+      assert.strictEqual(children.length, 1);
+      assert.strictEqual(children[0].value, 42);
+    }
+  });
+
   test('AC-7 Rootノード生成: Sets root.name to file name', () => {
     const yamlContent = 'key: value';
 
