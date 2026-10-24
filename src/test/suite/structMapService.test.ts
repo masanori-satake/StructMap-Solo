@@ -82,6 +82,28 @@ suite('StructMapService Test Suite', () => {
     }
   });
 
+  test('File Size Protection: 制限値超過時に FILE_TOO_LARGE エラーを返し Parser を実行しない', () => {
+    // 5MB + 1KB content
+    const largeContent = '{\n"data": "' + 'x'.repeat(5 * 1024 * 1024 + 1024) + '"\n}';
+    const result = service.build('large.json', largeContent, 5);
+
+    assert.strictEqual(result.type, 'error');
+    if (result.type === 'error') {
+      assert.strictEqual(result.code, ParseErrorCode.FILE_TOO_LARGE);
+      assert.ok(result.message.includes('Current:'));
+      assert.ok(result.message.includes('Limit: 5 MB'));
+    }
+
+    // Test custom maxFileSizeMB limit
+    const smallLimitContent = '{\n"data": "' + 'x'.repeat(1 * 1024 * 1024 + 100) + '"\n}';
+    const customResult = service.build('small.json', smallLimitContent, 1);
+    assert.strictEqual(customResult.type, 'error');
+    if (customResult.type === 'error') {
+      assert.strictEqual(customResult.code, ParseErrorCode.FILE_TOO_LARGE);
+      assert.ok(customResult.message.includes('Limit: 1 MB'));
+    }
+  });
+
   test('AC-6 ParseError伝播: Parserエラーが失われない', () => {
     // Invalid JSON
     const jsonResult = service.build('invalid.json', '{\n  "name":');

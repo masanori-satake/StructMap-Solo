@@ -100,7 +100,7 @@
         },
         "structMap.debounceMs": {
           "type": "number",
-          "default": 300,
+          "default": 500,
           "description": "Debounce delay for StructMap view updates in milliseconds."
         },
         "structMap.maxFileSizeMB": {

@@ -25,6 +25,8 @@ function getIconForNodeType(nodeType: StructNode['nodeType']): vscode.ThemeIcon 
  */
 function getErrorDisplayLabel(error: ParseError): string {
   switch (error.code) {
+    case ParseErrorCode.FILE_TOO_LARGE:
+      return 'File Too Large';
     case ParseErrorCode.JSON_PARSE_ERROR:
       return 'JSON Parse Error';
     case ParseErrorCode.YAML_PARSE_ERROR:
@@ -179,7 +181,12 @@ export class StructMapTreeProvider implements vscode.TreeDataProvider<StructTree
       const fileName = activeEditor.document.fileName;
       const content = activeEditor.document.getText();
 
-      const parseResult = this.structMapService.build(fileName, content);
+      const config = vscode.workspace?.getConfiguration
+        ? vscode.workspace.getConfiguration('structMap', activeEditor.document.uri)
+        : undefined;
+      const maxFileSizeMB = config ? config.get<number>('maxFileSizeMB', 5) : 5;
+
+      const parseResult = this.structMapService.build(fileName, content, maxFileSizeMB);
 
       if (isParseError(parseResult)) {
         const displayLabel = getErrorDisplayLabel(parseResult);
