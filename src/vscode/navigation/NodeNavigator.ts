@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import { Node, parseTree } from 'jsonc-parser';
 import { StructNode } from '../../core';
 
 /**
@@ -101,7 +100,7 @@ export class NodeNavigator {
       }
       // Search within frontmatter block
       for (let i = 1; i < lines.length; i++) {
-        if (/^(---|\.\.\.)[ \t]*$/.test(lines[i])) {
+        if (/^(---|Calculated:|\.\.\.)[ \t]*$/.test(lines[i]) || /^(---|\.\.\.)[ \t]*$/.test(lines[i])) {
           break; // end of frontmatter
         }
         const keyRegex = new RegExp(`^\\s*['"]?${this.escapeRegExp(node.name)}['"]?\\s*:`);
@@ -124,39 +123,9 @@ export class NodeNavigator {
     }
 
     const headingStack: { level: number; title: string; line: number; col: number }[] = [];
-    let codeFence: string | undefined;
-    let fallbackPosition: vscode.Position | undefined;
-    let inFrontmatter = /^---[ \t]*$/.test(lines[0]);
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      if (inFrontmatter) {
-        if (i > 0 && /^(---|\.\.\.)[ \t]*$/.test(line)) {
-          inFrontmatter = false;
-        }
-        continue;
-      }
-      const fenceMatch = line.match(/^ {0,3}(`{3,}|~{3,})/);
-      // Match MarkdownParser's opening and closing fence rules.
-      if (codeFence) {
-        if (
-          fenceMatch &&
-          fenceMatch[1][0] === codeFence[0] &&
-          fenceMatch[1].length >= codeFence.length &&
-          /^[ \t]*$/.test(line.slice(fenceMatch[0].length))
-        ) {
-          codeFence = undefined;
-        }
-        continue;
-      }
-      if (
-        fenceMatch &&
-        (fenceMatch[1][0] !== '`' || !line.slice(fenceMatch[0].length).includes('`'))
-      ) {
-        codeFence = fenceMatch[1];
-        continue;
-      }
-
       const match = line.match(/^ {0,3}(#{1,6})(?:\s+(.*?))?$/);
       if (!match) {
         continue;
@@ -171,10 +140,6 @@ export class NodeNavigator {
       }
 
       const hashCol = line.indexOf('#');
-      // Retain a fallback only from headings outside code fences.
-      if (rawTitle === node.name && !fallbackPosition) {
-        fallbackPosition = new vscode.Position(i, Math.max(0, hashCol));
-      }
       headingStack.push({ level, title: rawTitle, line: i, col: Math.max(0, hashCol) });
 
       const currentPath = headingStack.map((h) => h.title);
@@ -183,7 +148,20 @@ export class NodeNavigator {
       }
     }
 
-    return fallbackPosition;
+    // Fallback: search for last heading matching node.name
+    for (let i = 0; i < lines.length; i++) {
+      const match = lines[i].match(/^ {0,3}(#{1,6})(?:\s+(.*?))?$/);
+      if (match) {
+        let rawTitle = match[2] ?? '';
+        rawTitle = rawTitle.replace(/(?:\s+#+)+$/, '').trim();
+        if (rawTitle === node.name) {
+          const hashCol = lines[i].indexOf('#');
+          return new vscode.Position(i, Math.max(0, hashCol));
+        }
+      }
+    }
+
+    return undefined;
   }
 
   /**
@@ -199,31 +177,103 @@ export class NodeNavigator {
       return new vscode.Position(0, 0);
     }
 
-    let current: Node | undefined = parseTree(text);
-    let offset = 0;
-    for (const key of targetKeys) {
-      if (current?.type === 'object') {
-        // JSON.parse keeps the last occurrence of duplicate property names.
-        const property: Node | undefined = current.children
-          ?.filter(property => property.children?.[0].value === key).pop();
-        const keyNode = property?.children?.[0];
-        current = property?.children?.[1];
-        if (!keyNode || !current) {
+    let cursor = 0;
+
+    for (let k = 0; k < targetKeys.length; k++) {
+      const key = targetKeys[k];
+
+      if (/^\[\d+\]$/.test(key)) {
+        // Array index like '[0]'
+        const idx = parseInt(key.slice(1, -1), 10);
+        const bracketPos = text.indexOf('[', cursor);
+        if (bracketPos === -1) {
           return undefined;
         }
-        offset = keyNode.offset;
-      } else if (current?.type === 'array' && /^\[\d+\]$/.test(key)) {
-        current = current.children?.[Number(key.slice(1, -1))];
-        if (!current) {
+
+        let pos = bracketPos + 1;
+        let elemCount = 0;
+
+        while (pos < text.length && elemCount < idx) {
+          pos = this.skipJsonValue(text, pos);
+          // Skip whitespace/comma
+          while (pos < text.length && /[\s,]/.test(text[pos])) {
+            pos++;
+          }
+          elemCount++;
+        }
+
+        if (pos >= text.length) {
           return undefined;
         }
-        offset = current.offset;
+
+        // Skip leading whitespace
+        while (pos < text.length && /\s/.test(text[pos])) {
+          pos++;
+        }
+        cursor = pos;
       } else {
-        return undefined;
+        // Property key
+        const keyPattern = `"${this.escapeRegExp(key)}"`;
+        const keyPos = text.indexOf(keyPattern, cursor);
+        if (keyPos === -1) {
+          return undefined;
+        }
+        cursor = keyPos;
       }
     }
 
-    return document.positionAt(offset);
+    return document.positionAt(cursor);
+  }
+
+  /**
+   * Helper to skip past a JSON value (string, object, array, primitive) in text starting from offset.
+   */
+  private skipJsonValue(text: string, start: number): number {
+    let pos = start;
+    while (pos < text.length && /[\s,]/.test(text[pos])) {
+      pos++;
+    }
+    if (pos >= text.length) {
+      return pos;
+    }
+
+    const char = text[pos];
+    if (char === '{' || char === '[') {
+      const closeChar = char === '{' ? '}' : ']';
+      let depth = 1;
+      pos++;
+      let inString = false;
+
+      while (pos < text.length && depth > 0) {
+        const c = text[pos];
+        if (c === '"' && text[pos - 1] !== '\\') {
+          inString = !inString;
+        } else if (!inString) {
+          if (c === char) depth++;
+          else if (c === closeChar) depth--;
+        }
+        pos++;
+      }
+      return pos;
+    }
+
+    if (char === '"') {
+      pos++;
+      while (pos < text.length) {
+        if (text[pos] === '"' && text[pos - 1] !== '\\') {
+          pos++;
+          break;
+        }
+        pos++;
+      }
+      return pos;
+    }
+
+    // Primitive value (number, boolean, null)
+    while (pos < text.length && !/[\s,}\]]/.test(text[pos])) {
+      pos++;
+    }
+    return pos;
   }
 
   /**
@@ -239,73 +289,80 @@ export class NodeNavigator {
     }
 
     const lines = text.split(/\r?\n/);
-    let currentLine = -1;
-    let currentCol = 0;
-    let parentIndent = -1;
-    let parentIsArrayItem = false;
-    let inlineColumn: number | undefined;
+    let currentLine = 0;
+    let minIndent = -1;
 
-    for (const key of targetKeys) {
-      const isArrayIndex = /^\[\d+\]$/.test(key);
-      const targetIndex = isArrayIndex ? Number(key.slice(1, -1)) : -1;
-      const keyRegex = new RegExp(`^['"]?${this.escapeRegExp(key)}['"]?\\s*:`);
-      let childIndent: number | undefined;
-      let itemIndex = -1;
-      let foundLine = -1;
-      let foundCol = 0;
-      let nextInlineColumn: number | undefined;
-      // Only an array item's inline content can be a child on the parent line.
-      const startLine = inlineColumn === undefined ? currentLine + 1 : currentLine;
+    for (let k = 0; k < targetKeys.length; k++) {
+      const key = targetKeys[k];
 
-      for (let i = startLine; i < lines.length; i++) {
-        const col = i === currentLine && inlineColumn !== undefined
-          ? inlineColumn : this.getIndent(lines[i]);
-        const content = lines[i].slice(col);
-        if (!content.trim() || content.startsWith('#')) {
-          continue;
-        }
-        const arrayItem = content.match(/^-(?:[ \t]+|$)/);
-        if (i !== currentLine && (
-          col < parentIndent ||
-          (col === parentIndent && (parentIsArrayItem || !arrayItem))
-        )) {
-          break;
-        }
-        // The first child establishes the indentation of direct children.
-        childIndent ??= col;
-        if (col !== childIndent) {
-          continue;
-        }
+      if (/^\[\d+\]$/.test(key)) {
+        // Array index like '[0]'
+        const targetIdx = parseInt(key.slice(1, -1), 10);
+        let foundIdx = -1;
+        let foundLine = -1;
 
-        if (isArrayIndex) {
-          if (!arrayItem || ++itemIndex !== targetIndex) {
+        for (let i = currentLine; i < lines.length; i++) {
+          const line = lines[i];
+          if (/^\s*$/.test(line) || /^\s*#/.test(line)) {
             continue;
           }
-          const contentColumn = col + arrayItem[0].length;
-          if (/^[^#\s].*?:(?:[ \t]|$)/.test(lines[i].slice(contentColumn))) {
-            nextInlineColumn = contentColumn;
+          const indent = this.getIndent(line);
+          if (i > currentLine && minIndent !== -1 && indent < minIndent) {
+            break; // left parent scope
           }
-        } else if (arrayItem || !keyRegex.test(content)) {
-          continue;
+
+          const arrayItemMatch = line.match(/^(\s*)-\s+/);
+          if (arrayItemMatch) {
+            const itemIndent = arrayItemMatch[1].length;
+            if (minIndent === -1 || itemIndent >= minIndent) {
+              foundIdx++;
+              if (foundIdx === targetIdx) {
+                foundLine = i;
+                break;
+              }
+            }
+          }
         }
 
-        foundLine = i;
-        foundCol = col;
-        break;
-      }
+        if (foundLine === -1) {
+          return undefined;
+        }
 
-      if (foundLine === -1) {
-        return undefined;
+        currentLine = foundLine;
+        minIndent = this.getIndent(lines[foundLine]) + 1;
+      } else {
+        // Property key
+        let foundLine = -1;
+        const keyRegex = new RegExp(`^(\\s*)-?\\s*['"]?${this.escapeRegExp(key)}['"]?\\s*:`);
+
+        for (let i = currentLine; i < lines.length; i++) {
+          const line = lines[i];
+          if (/^\s*$/.test(line) || /^\s*#/.test(line)) {
+            continue;
+          }
+          const indent = this.getIndent(line);
+          if (i > currentLine && minIndent !== -1 && indent < minIndent) {
+            break; // left parent scope
+          }
+
+          if (keyRegex.test(line)) {
+            foundLine = i;
+            break;
+          }
+        }
+
+        if (foundLine === -1) {
+          return undefined;
+        }
+
+        currentLine = foundLine;
+        minIndent = this.getIndent(lines[foundLine]) + 1;
       }
-      currentLine = foundLine;
-      currentCol = foundCol;
-      parentIndent = foundCol;
-      parentIsArrayItem = isArrayIndex;
-      inlineColumn = nextInlineColumn;
     }
 
-    const keyCol = lines[currentLine].indexOf(node.name, currentCol);
-    return new vscode.Position(currentLine, keyCol < 0 ? currentCol : keyCol);
+    const lineText = lines[currentLine];
+    const keyCol = Math.max(0, lineText.indexOf(node.name));
+    return new vscode.Position(currentLine, keyCol);
   }
 
   private getIndent(line: string): number {

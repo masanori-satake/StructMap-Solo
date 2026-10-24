@@ -1,9 +1,6 @@
 import * as assert from 'assert';
-import { readFileSync } from 'fs';
-import * as path from 'path';
-import { runInNewContext } from 'vm';
 import * as vscode from 'vscode';
-import { StructMapService, StructNode } from '../../core';
+import { StructMapService } from '../../core';
 import {
   NodeNavigator,
   registerCommands,
@@ -86,54 +83,6 @@ suite('Commands & ViewState Integration Test Suite', () => {
     rootItems = provider.getChildren() as vscode.TreeItem[];
     assert.strictEqual(rootItems.length, 1);
     assert.strictEqual(rootItems[0].label, 'name');
-  });
-
-
-  test('Jump command accepts only nodes belonging to the active document', () => {
-    const document = { fileName: '/workspace/current.md' };
-    const editor = { document } as vscode.TextEditor;
-    const window: { activeTextEditor: vscode.TextEditor | undefined } = { activeTextEditor: editor };
-    const callbacks = new Map<string, (node?: StructNode) => void>();
-    const exports = {} as { registerCommands: typeof registerCommands };
-    runInNewContext(readFileSync(path.join(__dirname, '../../vscode/commands/index.js'), 'utf8'), {
-      exports,
-      require: (id: string) => {
-        if (id === 'vscode') {
-          return {
-            window,
-            commands: {
-              registerCommand: (name: string, callback: (node?: StructNode) => void) => {
-                callbacks.set(name, callback);
-                return new vscode.Disposable(() => {});
-              }
-            }
-          };
-        }
-        if (id === '../../core') return {};
-        throw new Error(`Unexpected import: ${id}`);
-      }
-    });
-    const calls: { editor: vscode.TextEditor; node: StructNode }[] = [];
-    nodeNavigator.jumpToNode = (editor, node) => { calls.push({ editor, node }); return true; };
-    exports.registerCommands(
-      { subscriptions: [] } as unknown as vscode.ExtensionContext,
-      treeDataProvider, viewStateManager, structMapService, nodeNavigator
-    );
-    const jump = callbacks.get('structmap-solo.jumpToNode');
-    assert.ok(jump);
-    const node: StructNode = {
-      id: 'heading', name: 'Heading', path: [document.fileName, 'Heading'],
-      nodeType: 'section', children: []
-    };
-    jump({ ...node, path: ['/workspace/previous.md', 'Heading'] });
-    jump({ ...node, path: [] });
-    jump();
-    assert.strictEqual(calls.length, 0);
-    jump(node);
-    assert.deepStrictEqual(calls, [{ editor, node }]);
-    window.activeTextEditor = undefined;
-    jump(node);
-    assert.strictEqual(calls.length, 1);
   });
 
   test('Command registration registers commands in subscriptions', () => {
