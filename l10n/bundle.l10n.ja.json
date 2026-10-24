@@ -1,0 +1,14 @@
+{
+  "No Active Editor": "アクティブなエディタがありません",
+  "File Too Large": "ファイルサイズ超過",
+  "JSON Parse Error": "JSON解析エラー",
+  "YAML Parse Error": "YAML解析エラー",
+  "Frontmatter Parse Error": "フロントマター解析エラー",
+  "Unsupported Format": "未対応のファイル形式",
+  "Empty File": "空のファイル",
+  "Parse Error": "解析エラー",
+  "Current: {0} MB\nLimit: {1} MB": "現在: {0} MB\n制限: {1} MB",
+  "No active text editor to copy tree from.": "ツリー構造をコピーするアクティブなテキストエディタがありません。",
+  "Unable to parse active document structure.": "アクティブなドキュメントの構造を解析できません。",
+  "StructMap tree copied to clipboard.": "StructMap ツリー構造をクリップボードにコピーしました。"
+}

@@ -1,7 +1,7 @@
 {
   "name": "structmap-solo",
   "displayName": "StructMap-Solo",
-  "description": "Local-First, Privacy-First structure visualizer for Markdown, JSON, and YAML without AI.",
+  "description": "%extension.description%",
   "version": "0.0.1",
   "publisher": "structmap-solo",
   "repository": {
@@ -19,35 +19,36 @@
     "onView:structmap-solo.view"
   ],
   "main": "./out/extension.js",
+  "l10n": "./l10n",
   "contributes": {
     "commands": [
       {
         "command": "structmap-solo.copyTree",
-        "title": "Copy Tree",
+        "title": "%command.copyTree%",
         "category": "StructMap",
         "icon": "$(copy)"
       },
       {
         "command": "structmap-solo.toggleTypes",
-        "title": "Toggle Types",
+        "title": "%command.toggleTypes%",
         "category": "StructMap",
         "icon": "$(symbol-parameter)"
       },
       {
         "command": "structmap-solo.toggleTreeStyle",
-        "title": "Toggle Tree Style",
+        "title": "%command.toggleTreeStyle%",
         "category": "StructMap",
         "icon": "$(list-tree)"
       },
       {
         "command": "structmap-solo.toggleRoot",
-        "title": "Toggle Root",
+        "title": "%command.toggleRoot%",
         "category": "StructMap",
         "icon": "$(root-folder)"
       },
       {
         "command": "structmap-solo.refresh",
-        "title": "Refresh",
+        "title": "%command.refresh%",
         "category": "StructMap",
         "icon": "$(refresh)"
       }
@@ -56,7 +57,7 @@
       "explorer": [
         {
           "id": "structmap-solo.view",
-          "name": "StructMap"
+          "name": "%view.name%"
         }
       ]
     },
@@ -91,22 +92,22 @@
     },
     "configuration": {
       "type": "object",
-      "title": "StructMap",
+      "title": "%config.title%",
       "properties": {
         "structMap.autoRefresh": {
           "type": "boolean",
           "default": true,
-          "description": "Enable automatic refresh of StructMap view."
+          "description": "%config.autoRefresh%"
         },
         "structMap.debounceMs": {
           "type": "number",
-          "default": 300,
-          "description": "Debounce delay for StructMap view updates in milliseconds."
+          "default": 500,
+          "description": "%config.debounceMs%"
         },
         "structMap.maxFileSizeMB": {
           "type": "number",
           "default": 5,
-          "description": "Maximum file size in megabytes to process."
+          "description": "%config.maxFileSizeMB%"
         }
       }
     }

@@ -41,8 +41,14 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     treeView,
     new vscode.Disposable(cancelPendingRefresh),
-    vscode.window.onDidChangeActiveTextEditor(() => {
+    vscode.window.onDidChangeActiveTextEditor((editor) => {
       cancelPendingRefresh();
+      if (editor && editor.document) {
+        const config = vscode.workspace.getConfiguration('structMap', editor.document.uri);
+        if (!config.get<boolean>('autoRefresh', true)) {
+          return;
+        }
+      }
       treeDataProvider.refresh();
     }),
     vscode.workspace.onDidChangeTextDocument((e) => {
@@ -64,7 +70,7 @@ export function activate(context: vscode.ExtensionContext): void {
           ) {
             treeDataProvider.refresh();
           }
-        }, config.get<number>('debounceMs', 300));
+        }, config.get<number>('debounceMs', 500));
       }
     })
   );

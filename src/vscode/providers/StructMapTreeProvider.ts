@@ -24,19 +24,22 @@ function getIconForNodeType(nodeType: StructNode['nodeType']): vscode.ThemeIcon 
  * Maps a ParseError code to a human-readable TreeView display label.
  */
 function getErrorDisplayLabel(error: ParseError): string {
+  const t = (str: string) => (vscode.l10n?.t ? vscode.l10n.t(str) : str);
   switch (error.code) {
+    case ParseErrorCode.FILE_TOO_LARGE:
+      return t('File Too Large');
     case ParseErrorCode.JSON_PARSE_ERROR:
-      return 'JSON Parse Error';
+      return t('JSON Parse Error');
     case ParseErrorCode.YAML_PARSE_ERROR:
-      return 'YAML Parse Error';
+      return t('YAML Parse Error');
     case ParseErrorCode.FRONTMATTER_PARSE_ERROR:
-      return 'Frontmatter Parse Error';
+      return t('Frontmatter Parse Error');
     case ParseErrorCode.UNSUPPORTED_FORMAT:
-      return 'Unsupported Format';
+      return t('Unsupported Format');
     case ParseErrorCode.EMPTY_FILE:
-      return 'Empty File';
+      return t('Empty File');
     default:
-      return error.message || 'Parse Error';
+      return error.message || t('Parse Error');
   }
 }
 
@@ -173,17 +176,33 @@ export class StructMapTreeProvider implements vscode.TreeDataProvider<StructTree
     if (!element) {
       const activeEditor = this.getActiveTextEditor();
       if (!activeEditor || !activeEditor.document) {
-        return [StructTreeItem.createError('No Active Editor')];
+        return [
+          StructTreeItem.createError(
+            vscode.l10n?.t ? vscode.l10n.t('No Active Editor') : 'No Active Editor'
+          ),
+        ];
       }
 
       const fileName = activeEditor.document.fileName;
       const content = activeEditor.document.getText();
 
-      const parseResult = this.structMapService.build(fileName, content);
+      const config = vscode.workspace?.getConfiguration
+        ? vscode.workspace.getConfiguration('structMap', activeEditor.document.uri)
+        : undefined;
+      const maxFileSizeMB = config ? config.get<number>('maxFileSizeMB', 5) : 5;
+
+      const parseResult = this.structMapService.build(fileName, content, maxFileSizeMB);
 
       if (isParseError(parseResult)) {
         const displayLabel = getErrorDisplayLabel(parseResult);
-        return [StructTreeItem.createError(displayLabel, parseResult.message)];
+        let tooltip = parseResult.message;
+        if (parseResult.code === ParseErrorCode.FILE_TOO_LARGE) {
+          const match = parseResult.message.match(/Current:\s*([^\s]+)\s*MB\nLimit:\s*([^\s]+)\s*MB/);
+          if (match && vscode.l10n?.t) {
+            tooltip = vscode.l10n.t('Current: {0} MB\nLimit: {1} MB', match[1], match[2]);
+          }
+        }
+        return [StructTreeItem.createError(displayLabel, tooltip)];
       }
 
       if (isParseSuccess(parseResult)) {
@@ -196,7 +215,11 @@ export class StructMapTreeProvider implements vscode.TreeDataProvider<StructTree
         }
       }
 
-      return [StructTreeItem.createError('Parse Error')];
+      return [
+        StructTreeItem.createError(
+          vscode.l10n?.t ? vscode.l10n.t('Parse Error') : 'Parse Error'
+        ),
+      ];
     }
 
     if (element.isError || !element.node) {

@@ -14,15 +14,29 @@ export class StructMapService {
    *
    * @param fileName Name or path of the file to parse.
    * @param content Raw text content of the file.
+   * @param maxFileSizeMB Maximum allowed file size in megabytes (default 5).
    * @returns ParseResult containing StructTree on success, or ParseError on failure.
    */
-  public build(fileName: string, content: string): ParseResult {
+  public build(fileName: string, content: string, maxFileSizeMB: number = 5): ParseResult {
     const ext = this.getFileExtension(fileName);
 
     if (!ext || !this.isSupportedExtension(ext)) {
       return createParseError(
         ParseErrorCode.UNSUPPORTED_FORMAT,
         `Unsupported file format: ${fileName}`
+      );
+    }
+
+    const contentSizeBytes =
+      typeof Buffer !== 'undefined'
+        ? Buffer.byteLength(content, 'utf8')
+        : new TextEncoder().encode(content).length;
+    const contentSizeMB = contentSizeBytes / (1024 * 1024);
+
+    if (maxFileSizeMB > 0 && contentSizeMB > maxFileSizeMB) {
+      return createParseError(
+        ParseErrorCode.FILE_TOO_LARGE,
+        `Current: ${contentSizeMB} MB\nLimit: ${maxFileSizeMB} MB`
       );
     }
 

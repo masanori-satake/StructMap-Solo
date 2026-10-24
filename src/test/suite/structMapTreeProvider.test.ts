@@ -171,6 +171,20 @@ suite('StructMapTreeProvider Test Suite', () => {
     assert.strictEqual(children[0].isError, true);
   });
 
+  test('File Too Large displays error item with size details in tooltip', () => {
+    const largeContent = '{\n"data": "' + 'x'.repeat(5 * 1024 * 1024 + 1024) + '"\n}';
+    const mockEditor = createMockEditor('large.json', largeContent);
+    const provider = new StructMapTreeProvider(service, () => mockEditor);
+    const children = provider.getChildren() as StructTreeItem[];
+
+    assert.strictEqual(children.length, 1);
+    assert.strictEqual(children[0].label, 'File Too Large');
+    assert.strictEqual(children[0].isError, true);
+    assert.ok(typeof children[0].tooltip === 'string');
+    assert.ok(children[0].tooltip.includes('Current:'));
+    assert.ok(children[0].tooltip.includes('Limit: 5 MB'));
+  });
+
   test('YAML Parse Error, Frontmatter Parse Error, Empty File display correct error items', () => {
     let mockEditor = createMockEditor('bad.yaml', 'key: : bad');
     let provider = new StructMapTreeProvider(service, () => mockEditor);

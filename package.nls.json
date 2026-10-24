@@ -1,0 +1,13 @@
+{
+  "extension.description": "Local-First, Privacy-First structure visualizer for Markdown, JSON, and YAML without AI.",
+  "command.copyTree": "Copy Tree",
+  "command.toggleTypes": "Toggle Types",
+  "command.toggleTreeStyle": "Toggle Tree Style",
+  "command.toggleRoot": "Toggle Root",
+  "command.refresh": "Refresh",
+  "view.name": "StructMap",
+  "config.title": "StructMap",
+  "config.autoRefresh": "Enable automatic refresh of StructMap view.",
+  "config.debounceMs": "Debounce delay for StructMap view updates in milliseconds.",
+  "config.maxFileSizeMB": "Maximum file size in megabytes to process."
+}
