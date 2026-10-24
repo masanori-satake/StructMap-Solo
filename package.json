@@ -121,7 +121,8 @@
     "package": "vsce package"
   },
   "dependencies": {
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.0",
+    "jsonc-parser": "^3.3.1"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

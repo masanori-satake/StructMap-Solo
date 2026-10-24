@@ -68,7 +68,7 @@ export function registerCommands(
       'structmap-solo.jumpToNode',
       (node: StructNode) => {
         const editor = vscode.window.activeTextEditor;
-        if (editor && node) {
+        if (editor && node && node.path[0] === editor.document.fileName) {
           nodeNavigator.jumpToNode(editor, node);
         }
       }
