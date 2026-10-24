@@ -1,4 +1,1 @@
-// Placeholder for VSCode UI integration logic
-export interface VSCodePlaceholder {
-  initialized: boolean;
-}
+export * from './state/ViewState';
