@@ -1,0 +1,14 @@
+{
+  "No Active Editor": "No Active Editor",
+  "File Too Large": "File Too Large",
+  "JSON Parse Error": "JSON Parse Error",
+  "YAML Parse Error": "YAML Parse Error",
+  "Frontmatter Parse Error": "Frontmatter Parse Error",
+  "Unsupported Format": "Unsupported Format",
+  "Empty File": "Empty File",
+  "Parse Error": "Parse Error",
+  "Current: {0} MB\nLimit: {1} MB": "Current: {0} MB\nLimit: {1} MB",
+  "No active text editor to copy tree from.": "No active text editor to copy tree from.",
+  "Unable to parse active document structure.": "Unable to parse active document structure.",
+  "StructMap tree copied to clipboard.": "StructMap tree copied to clipboard."
+}

@@ -24,21 +24,33 @@ export function registerCommands(
     vscode.commands.registerCommand('structmap-solo.copyTree', async () => {
       const editor = vscode.window.activeTextEditor;
       if (!editor || !editor.document) {
-        vscode.window.showWarningMessage('No active text editor to copy tree from.');
+        vscode.window.showWarningMessage(
+          vscode.l10n?.t
+            ? vscode.l10n.t('No active text editor to copy tree from.')
+            : 'No active text editor to copy tree from.'
+        );
         return;
       }
       const fileName = editor.document.fileName;
       const content = editor.document.getText();
       const parseResult = structMapService.build(fileName, content);
       if (!isParseSuccess(parseResult)) {
-        vscode.window.showWarningMessage('Unable to parse active document structure.');
+        vscode.window.showWarningMessage(
+          vscode.l10n?.t
+            ? vscode.l10n.t('Unable to parse active document structure.')
+            : 'Unable to parse active document structure.'
+        );
         return;
       }
       const viewState = viewStateManager.getState();
       const renderer = new TreeRenderer();
       const treeText = renderer.render(parseResult.tree, viewState);
       await vscode.env.clipboard.writeText(treeText);
-      vscode.window.showInformationMessage('StructMap tree copied to clipboard.');
+      vscode.window.showInformationMessage(
+        vscode.l10n?.t
+          ? vscode.l10n.t('StructMap tree copied to clipboard.')
+          : 'StructMap tree copied to clipboard.'
+      );
     }),
 
     vscode.commands.registerCommand('structmap-solo.toggleTypes', async () => {

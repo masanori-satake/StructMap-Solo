@@ -1,0 +1,13 @@
+{
+  "extension.description": "AIを使用しない、ローカルファースト・プライバシーファーストな Markdown / JSON / YAML 構造可視化ツール。",
+  "command.copyTree": "ツリー構造をコピー",
+  "command.toggleTypes": "型表示の切り替え",
+  "command.toggleTreeStyle": "ツリースタイルの切り替え",
+  "command.toggleRoot": "ルート表示の切り替え",
+  "command.refresh": "更新",
+  "view.name": "StructMap",
+  "config.title": "StructMap",
+  "config.autoRefresh": "StructMap ビューの自動更新を有効にします。",
+  "config.debounceMs": "StructMap ビュー更新のデバウンス遅延（ミリ秒）。",
+  "config.maxFileSizeMB": "解析処理を行う最大ファイルサイズ（メガバイト）。"
+}
