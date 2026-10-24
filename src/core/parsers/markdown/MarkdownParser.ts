@@ -15,10 +15,15 @@ export interface MarkdownParseOptions {
   fileName?: string;
 }
 
+type FrontmatterResult =
+  | { type: 'found'; yamlContent: string; bodyLines: string[] }
+  | { type: 'unclosed' }
+  | null;
+
 /**
- * Extracts YAML frontmatter content and body lines from raw markdown lines if frontmatter is present.
+ * Extracts YAML frontmatter content and body lines, or identifies an unclosed frontmatter block.
  */
-function extractFrontmatter(lines: string[]): { yamlContent: string; bodyLines: string[] } | null {
+function extractFrontmatter(lines: string[]): FrontmatterResult {
   if (lines.length === 0) {
     return null;
   }
@@ -40,13 +45,13 @@ function extractFrontmatter(lines: string[]): { yamlContent: string; bodyLines: 
   }
 
   if (closingIndex === -1) {
-    return null;
+    return { type: 'unclosed' };
   }
 
   const yamlContent = lines.slice(1, closingIndex).join('\n');
   const bodyLines = lines.slice(closingIndex + 1);
 
-  return { yamlContent, bodyLines };
+  return { type: 'found', yamlContent, bodyLines };
 }
 
 /**
@@ -97,6 +102,15 @@ export class MarkdownParser {
 
       const lines = content.split(/\r?\n/);
       const frontmatterResult = extractFrontmatter(lines);
+
+      if (frontmatterResult?.type === 'unclosed') {
+        return createParseError(
+          ParseErrorCode.FRONTMATTER_PARSE_ERROR,
+          'Frontmatter Parse Error: Missing closing delimiter (--- or ...)',
+          1,
+          1
+        );
+      }
 
       let bodyLines = lines;
       const stack: { node: StructNode; level: number }[] = [];

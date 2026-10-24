@@ -330,6 +330,54 @@ tags:
     assert.deepStrictEqual(overviewNode.path, ['README.md', 'Overview']);
   });
 
+  test('Unclosed frontmatter returns FRONTMATTER_PARSE_ERROR', () => {
+    for (const markdown of [
+      '---',
+      '---\n',
+      '---\ntitle: StructMap\n# Overview',
+      '--- \t\r\ntitle: StructMap\r\n# Overview',
+      '---\ntitle: StructMap\n--- trailing text\n ...\n# Overview'
+    ]) {
+      const result = parser.parse(markdown, 'UNCLOSED.md');
+
+      assert.strictEqual(result.type, 'error', JSON.stringify(markdown));
+      if (result.type === 'error') {
+        assert.strictEqual(result.code, ParseErrorCode.FRONTMATTER_PARSE_ERROR);
+        assert.match(result.message, /Frontmatter Parse Error:.*closing delimiter/i);
+        assert.strictEqual(result.line, 1);
+        assert.strictEqual(result.column, 1);
+      }
+    }
+  });
+
+  test('Closed frontmatter preserves YAML values and Markdown sections', () => {
+    for (const delimiter of ['---', '...']) {
+      for (const newline of ['\n', '\r\n']) {
+        const markdown = ['--- \t', 'title: StructMap', `${delimiter} \t`, '# Overview']
+          .join(newline);
+        const tree = getTree(parser.parse(markdown, 'README.md'));
+
+        assert.deepStrictEqual(tree.root.children.map(node => node.name),
+          ['Frontmatter (YAML)', 'Content (Markdown)']);
+        assert.strictEqual(tree.root.children[0].children[0].value, 'StructMap');
+        assert.strictEqual(tree.root.children[1].children[0].name, 'Overview');
+
+        const emptyTree = getTree(parser.parse(['---', delimiter, '# Overview'].join(newline)));
+        assert.deepStrictEqual(emptyTree.root.children[0].children, []);
+        assert.strictEqual(emptyTree.root.children[1].children[0].name, 'Overview');
+      }
+    }
+  });
+
+  test('Only an opening delimiter on the first line starts frontmatter', () => {
+    for (const markdown of ['', '\n---\n# Overview', ' ---\n# Overview', '...\n# Overview']) {
+      const tree = getTree(parser.parse(markdown));
+
+      assert.deepStrictEqual(tree.root.children.map(node => node.name),
+        markdown === '' ? [] : ['Overview']);
+    }
+  });
+
   test('Frontmatter AC-3 & AC-4 & AC-5: Invalid YAML syntax in frontmatter returns ParseError without crashing', () => {
     const markdown = '---\ntitle: [unclosed array\ninvalid: : :\n---\n\n# Overview';
 
