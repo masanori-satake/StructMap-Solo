@@ -2,7 +2,8 @@
   "name": "structmap-solo",
   "displayName": "StructMap-Solo",
   "description": "%extension.description%",
-  "version": "0.0.1",
+  "version": "1.0.0",
+  "icon": "assets/icon.png",
   "publisher": "structmap-solo",
   "repository": {
     "type": "git",
@@ -119,7 +120,8 @@
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "vscode-test",
-    "package": "vsce package"
+    "package": "vsce package",
+    "convert-icon": "node scripts/convert-icon.js"
   },
   "dependencies": {
     "js-yaml": "^4.1.0"
@@ -137,6 +139,7 @@
     "eslint": "^8.57.0",
     "glob": "^10.5.0",
     "mocha": "^10.3.0",
+    "playwright": "^1.64.1",
     "typescript": "^5.3.3"
   }
 }
