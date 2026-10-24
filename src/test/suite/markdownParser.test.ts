@@ -99,6 +99,66 @@ Some description text.
     assert.strictEqual(projectNode.children[1].name, '🚀 Release');
   });
 
+  for (const marker of ['`', '~']) {
+    test(`Ignores invalid closing fences for ${marker} code blocks`, () => {
+      const fence = marker.repeat(4);
+      const invalidClosers = [
+        (marker === '`' ? '~' : '`').repeat(4),
+        marker.repeat(3),
+        `${fence} text`,
+        `    ${fence}`,
+        `\t${fence}`,
+        ` \t${fence}`
+      ];
+
+      for (const closer of invalidClosers) {
+        const markdown = [
+          '# Before', `${fence}markdown`, '# Hidden', closer,
+          '# Still hidden', fence, '# After'
+        ].join('\n');
+        const tree = parser.parse(markdown);
+
+        assert.deepStrictEqual(tree.root.children.map(node => node.name),
+          ['Before', 'After'], JSON.stringify(closer));
+      }
+    });
+
+    test(`Accepts matching or longer ${marker} closing fences with trailing spaces and tabs`, () => {
+      for (const length of [3, 4]) {
+        const markdown = [
+          `   ${marker.repeat(3)}markdown`, '# Hidden',
+          `   ${marker.repeat(length)} \t`, '# After'
+        ].join('\r\n');
+        const tree = parser.parse(markdown);
+
+        assert.deepStrictEqual(tree.root.children.map(node => node.name), ['After']);
+      }
+    });
+
+    test(`Restricts ${marker} opening fence indentation to at most three spaces`, () => {
+      for (const indent of ['', ' ', '  ', '   ', '    ', '\t', ' \t']) {
+        const markdown = [
+          '# Before', `${indent}${marker.repeat(3)}markdown`, '# Visible unless fenced'
+        ].join('\n');
+        const tree = parser.parse(markdown);
+        const expectedNames = indent.length <= 3 && !indent.includes('\t')
+          ? ['Before'] : ['Before', 'Visible unless fenced'];
+
+        assert.deepStrictEqual(tree.root.children.map(node => node.name),
+          expectedNames, JSON.stringify(indent));
+      }
+    });
+  }
+
+  test('Restricts heading indentation to at most three spaces and rejects tabs', () => {
+    const indents = ['', ' ', '  ', '   ', '    ', '\t', ' \t', '\t '];
+    const markdown = indents.map((indent, index) => `${indent}# Heading ${index}`).join('\n');
+    const tree = parser.parse(markdown);
+
+    assert.deepStrictEqual(tree.root.children.map(node => node.name),
+      ['Heading 0', 'Heading 1', 'Heading 2', 'Heading 3']);
+  });
+
   test('AC-4 見出し飛び級対応 (Handles skipped heading levels without throwing)', () => {
     assert.doesNotThrow(() => {
       const markdown = `# A

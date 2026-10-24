@@ -35,21 +35,27 @@ export class MarkdownParser {
     ];
 
     const lines = content.split(/\r?\n/);
-    let inCodeBlock = false;
+    let codeFence: string | undefined;
 
     for (const line of lines) {
-      // Check for code block fences (``` or ~~~)
-      if (/^\s*(?:`{3,}|~{3,})/.test(line)) {
-        inCodeBlock = !inCodeBlock;
+      const fenceMatch = line.match(/^ {0,3}(`{3,}|~{3,})/);
+
+      if (codeFence) {
+        if (fenceMatch && fenceMatch[1][0] === codeFence[0]
+          && fenceMatch[1].length >= codeFence.length
+          && /^[ \t]*$/.test(line.slice(fenceMatch[0].length))) {
+          codeFence = undefined;
+        }
         continue;
       }
 
-      if (inCodeBlock) {
+      if (fenceMatch) {
+        codeFence = fenceMatch[1];
         continue;
       }
 
       // ATX heading regex: up to 3 leading spaces, 1-6 hashes, optional whitespace and title text
-      const headingMatch = line.match(/^\s{0,3}(#{1,6})(?:\s+(.*?))?$/);
+      const headingMatch = line.match(/^ {0,3}(#{1,6})(?:\s+(.*?))?$/);
       if (!headingMatch) {
         continue;
       }
