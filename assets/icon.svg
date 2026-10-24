@@ -1,25 +1,59 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
+    <!-- Background Gradient (Indigo to Purple) -->
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#4338CA"/>
       <stop offset="100%" stop-color="#A855F7"/>
     </linearGradient>
+
+    <!-- Drop Shadow for Tree Strokes -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
   </defs>
 
-  <!-- Base rounded rectangle background -->
-  <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
+  <!-- Base Rounded Container (MeetDock-Solo design language) -->
+  <rect width="512" height="512" rx="112" ry="112" fill="url(#bgGrad)"/>
 
-  <!-- Tree Structure Motif -->
-  <g stroke-linecap="round" stroke-linejoin="round">
-    <!-- Smooth branching stem -->
-    <path d="M 256,150 L 256,230 C 256,290 160,290 160,350" fill="none" stroke="#FFFFFF" stroke-width="22"/>
-    <path d="M 256,230 C 256,290 352,290 352,350" fill="none" stroke="#FFFFFF" stroke-width="22"/>
+  <!-- Tree Motif: Top-Left Root to Bottom-Right Branches (2 Levels) -->
+  <g filter="url(#glow)">
+    <!-- Path 1: Root down to level 1 branch 1 (horizontal right) -->
+    <path d="M 160 135
+             L 160 225
+             Q 160 245 180 245
+             L 330 245"
+          fill="none"
+          stroke="#FFFFFF"
+          stroke-width="20"
+          stroke-linecap="round"
+          stroke-linejoin="round" />
 
-    <!-- Bottom Left Node -->
-    <circle cx="160" cy="350" r="12" fill="#FFFFFF"/>
-    <!-- Bottom Right Node -->
-    <circle cx="352" cy="350" r="12" fill="#FFFFFF"/>
-    <!-- Top Root Node (Gold Accent) -->
-    <circle cx="256" cy="150" r="16" fill="#E8B838" stroke="#FFFFFF" stroke-width="4"/>
+    <!-- Path 2: Continuation down to level 1 branch 2 and level 2 sub-branch -->
+    <path d="M 160 225
+             L 160 325
+             Q 160 345 180 345
+             L 245 345
+             Q 265 345 265 365
+             L 265 375
+             Q 265 395 285 395
+             L 360 395"
+          fill="none"
+          stroke="#FFFFFF"
+          stroke-width="20"
+          stroke-linecap="round"
+          stroke-linejoin="round" />
+
+    <!-- Node Circles -->
+    <!-- Root Node (Top-Left, Gold Accent) -->
+    <circle cx="160" cy="135" r="18" fill="#E8B838" stroke="#FFFFFF" stroke-width="5"/>
+
+    <!-- Level 1 Node A (Top branch end) -->
+    <circle cx="330" cy="245" r="10" fill="#FFFFFF"/>
+
+    <!-- Level 1 Node B (Mid branch junction) -->
+    <circle cx="245" cy="345" r="9" fill="#FFFFFF"/>
+
+    <!-- Level 2 Sub-node (Bottom-Right leaf) -->
+    <circle cx="360" cy="395" r="10" fill="#FFFFFF"/>
   </g>
 </svg>
