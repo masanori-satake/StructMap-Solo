@@ -244,4 +244,135 @@ Some description text.
     assert.strictEqual(titleNode.name, 'Title');
     assert.strictEqual(titleNode.children[0].name, 'Subtitle');
   });
+
+  /* -------------------------------------------------------------------------- */
+  /* Frontmatter Parsing Test Suite (AC-1 to AC-6)                              */
+  /* -------------------------------------------------------------------------- */
+
+  test('Frontmatter AC-1 & AC-2 & AC-3: YAML Frontmatter and Markdown Content parsing with correct section names', () => {
+    const markdown = `---
+title: StructMap
+tags:
+  - vscode
+  - markdown
+---
+
+# Overview
+## Design`;
+
+    const tree = parser.parse(markdown, 'README.md');
+
+    assert.strictEqual(tree.sourceFormat, 'markdown');
+    assert.strictEqual(tree.root.name, 'README.md');
+    assert.strictEqual(tree.root.nodeType, 'root');
+    assert.strictEqual(tree.root.children.length, 2);
+
+    // AC-3 Section 1: Frontmatter (YAML)
+    const fmNode = tree.root.children[0];
+    assert.strictEqual(fmNode.name, 'Frontmatter (YAML)');
+    assert.strictEqual(fmNode.nodeType, 'section');
+    assert.deepStrictEqual(fmNode.path, ['README.md', 'Frontmatter (YAML)']);
+    assert.strictEqual(fmNode.children.length, 2);
+
+    // AC-1: title value node
+    const titleNode = fmNode.children[0];
+    assert.strictEqual(titleNode.name, 'title');
+    assert.strictEqual(titleNode.nodeType, 'value');
+    assert.strictEqual(titleNode.valueType, 'string');
+    assert.deepStrictEqual(titleNode.path, ['README.md', 'Frontmatter (YAML)', 'title']);
+
+    // AC-1: tags array node
+    const tagsNode = fmNode.children[1];
+    assert.strictEqual(tagsNode.name, 'tags');
+    assert.strictEqual(tagsNode.nodeType, 'array');
+    assert.deepStrictEqual(tagsNode.path, ['README.md', 'Frontmatter (YAML)', 'tags']);
+    assert.strictEqual(tagsNode.children.length, 2);
+    assert.strictEqual(tagsNode.children[0].name, '[0]');
+    assert.strictEqual(tagsNode.children[0].valueType, 'string');
+    assert.strictEqual(tagsNode.children[1].name, '[1]');
+    assert.strictEqual(tagsNode.children[1].valueType, 'string');
+
+    // AC-3 Section 2: Content (Markdown)
+    const contentNode = tree.root.children[1];
+    assert.strictEqual(contentNode.name, 'Content (Markdown)');
+    assert.strictEqual(contentNode.nodeType, 'section');
+    assert.deepStrictEqual(contentNode.path, ['README.md', 'Content (Markdown)']);
+    assert.strictEqual(contentNode.children.length, 1);
+
+    // AC-2: Overview heading node
+    const overviewNode = contentNode.children[0];
+    assert.strictEqual(overviewNode.name, 'Overview');
+    assert.strictEqual(overviewNode.nodeType, 'section');
+    assert.deepStrictEqual(overviewNode.path, ['README.md', 'Content (Markdown)', 'Overview']);
+    assert.strictEqual(overviewNode.children.length, 1);
+
+    // AC-2: Design heading node
+    const designNode = overviewNode.children[0];
+    assert.strictEqual(designNode.name, 'Design');
+    assert.strictEqual(designNode.nodeType, 'section');
+    assert.deepStrictEqual(designNode.path, ['README.md', 'Content (Markdown)', 'Overview', 'Design']);
+  });
+
+  test('Frontmatter AC-4: Documents without frontmatter maintain original root structure', () => {
+    const markdown = `# Overview
+## Design`;
+
+    const tree = parser.parse(markdown, 'README.md');
+
+    assert.strictEqual(tree.root.children.length, 1);
+    const overviewNode = tree.root.children[0];
+    assert.strictEqual(overviewNode.name, 'Overview');
+    assert.deepStrictEqual(overviewNode.path, ['README.md', 'Overview']);
+  });
+
+  test('Frontmatter AC-5: Invalid YAML syntax in frontmatter throws Error without crashing', () => {
+    const markdown = `---
+title: [unclosed array
+invalid yaml: : :
+---
+
+# Overview`;
+
+    assert.throws(() => {
+      parser.parse(markdown, 'INVALID.md');
+    }, (err: Error) => {
+      return err instanceof Error && err.message.includes('YAML frontmatter parse error');
+    });
+  });
+
+  test('Frontmatter AC-6: Unicode characters in frontmatter keys and values are preserved', () => {
+    const markdown = `---
+タイトル: StructMap 🚀
+タグ:
+  - 開発
+  - ビジュアル
+---
+
+# 概要`;
+
+    const tree = parser.parse(markdown, 'DOC.md');
+
+    const fmNode = tree.root.children[0];
+    assert.strictEqual(fmNode.name, 'Frontmatter (YAML)');
+
+    const titleNode = fmNode.children[0];
+    assert.strictEqual(titleNode.name, 'タイトル');
+
+    const tagsNode = fmNode.children[1];
+    assert.strictEqual(tagsNode.name, 'タグ');
+    assert.strictEqual(tagsNode.children[0].name, '[0]');
+
+    const contentNode = tree.root.children[1];
+    assert.strictEqual(contentNode.children[0].name, '概要');
+  });
+
+  test('FrontmatterParser does not import vscode', () => {
+    const parserFilePath = path.resolve(__dirname, '../../../src/core/parsers/markdown/FrontmatterParser.ts');
+    const fileContent = fs.readFileSync(parserFilePath, 'utf8');
+
+    assert.strictEqual(fileContent.includes("from 'vscode'"), false);
+    assert.strictEqual(fileContent.includes('from "vscode"'), false);
+    assert.strictEqual(fileContent.includes("require('vscode')"), false);
+    assert.strictEqual(fileContent.includes('require("vscode")'), false);
+  });
 });
