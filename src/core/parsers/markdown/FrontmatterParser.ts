@@ -1,6 +1,13 @@
 import * as yaml from 'js-yaml';
 import { StructNode, ValueType } from '../../model';
 
+const MAX_NODES = 10_000;
+
+interface ConversionContext {
+  ancestors: Set<object>;
+  nodeCount: number;
+}
+
 /**
  * Gets the ValueType for a primitive JS value.
  */
@@ -28,9 +35,17 @@ function convertValueToNodes(
   value: unknown,
   key: string,
   parentPath: string[],
-  createId: () => string
+  createId: () => string,
+  context: ConversionContext
 ): StructNode {
+  if (++context.nodeCount > MAX_NODES) {
+    throw new Error(`YAML frontmatter exceeds the maximum of ${MAX_NODES} nodes`);
+  }
   const currentPath = [...parentPath, key];
+
+  if (value instanceof Date) {
+    value = value.toISOString();
+  }
 
   if (value === null || value === undefined || typeof value !== 'object') {
     return {
@@ -39,39 +54,49 @@ function convertValueToNodes(
       path: currentPath,
       nodeType: 'value',
       valueType: getValueType(value),
+      value: (value ?? null) as string | number | boolean | null,
       children: []
     };
   }
 
-  if (Array.isArray(value)) {
-    const children: StructNode[] = value.map((item, index) => {
-      const itemKey = `[${index}]`;
-      return convertValueToNodes(item, itemKey, currentPath, createId);
+  if (context.ancestors.has(value)) {
+    throw new Error('YAML frontmatter contains a circular alias');
+  }
+
+  context.ancestors.add(value);
+  try {
+    if (Array.isArray(value)) {
+      const children: StructNode[] = value.map((item, index) => {
+        const itemKey = `[${index}]`;
+        return convertValueToNodes(item, itemKey, currentPath, createId, context);
+      });
+
+      return {
+        id: createId(),
+        name: key,
+        path: currentPath,
+        nodeType: 'array',
+        children
+      };
+    }
+
+    // Object
+    const obj = value as Record<string, unknown>;
+    const keys = Object.keys(obj);
+    const children: StructNode[] = keys.map((childKey) => {
+      return convertValueToNodes(obj[childKey], childKey, currentPath, createId, context);
     });
 
     return {
       id: createId(),
       name: key,
       path: currentPath,
-      nodeType: 'array',
+      nodeType: 'object',
       children
     };
+  } finally {
+    context.ancestors.delete(value);
   }
-
-  // Object
-  const obj = value as Record<string, unknown>;
-  const keys = Object.keys(obj);
-  const children: StructNode[] = keys.map((childKey) => {
-    return convertValueToNodes(obj[childKey], childKey, currentPath, createId);
-  });
-
-  return {
-    id: createId(),
-    name: key,
-    path: currentPath,
-    nodeType: 'object',
-    children
-  };
 }
 
 /**
@@ -85,7 +110,7 @@ export class FrontmatterParser {
    * @param parentPath The path array of the parent node (e.g. ['README.md', 'Frontmatter (YAML)']).
    * @param createId Generator function for unique node IDs.
    * @returns Array of child StructNodes.
-   * @throws Error if YAML syntax is invalid.
+   * @throws Error if YAML syntax is invalid, an alias is circular, or more than 10,000 nodes are generated.
    */
   public parse(
     yamlContent: string,
@@ -103,9 +128,14 @@ export class FrontmatterParser {
       return [];
     }
 
-    if (typeof parsed !== 'object') {
+    const context: ConversionContext = {
+      ancestors: new Set(typeof parsed === 'object' ? [parsed] : []),
+      nodeCount: 0
+    };
+
+    if (typeof parsed !== 'object' || parsed instanceof Date) {
       // Top-level scalar value
-      const node = convertValueToNodes(parsed, 'value', parentPath, createId);
+      const node = convertValueToNodes(parsed, 'value', parentPath, createId, context);
       return [node];
     }
 
@@ -113,14 +143,14 @@ export class FrontmatterParser {
       // Top-level array
       return parsed.map((item, index) => {
         const itemKey = `[${index}]`;
-        return convertValueToNodes(item, itemKey, parentPath, createId);
+        return convertValueToNodes(item, itemKey, parentPath, createId, context);
       });
     }
 
     // Top-level object
     const obj = parsed as Record<string, unknown>;
     return Object.keys(obj).map((key) => {
-      return convertValueToNodes(obj[key], key, parentPath, createId);
+      return convertValueToNodes(obj[key], key, parentPath, createId, context);
     });
   }
 }

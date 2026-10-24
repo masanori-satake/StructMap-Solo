@@ -39,6 +39,8 @@ export interface StructNode {
   nodeType: NodeType;
   /** Optional primitive data type, present when nodeType is 'value'. */
   valueType?: ValueType;
+  /** Optional scalar value, present when nodeType is 'value'. */
+  value?: string | number | boolean | null;
   /** Array of child structural nodes. */
   children: StructNode[];
 }

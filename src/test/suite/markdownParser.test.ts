@@ -357,10 +357,13 @@ invalid yaml: : :
 
     const titleNode = fmNode.children[0];
     assert.strictEqual(titleNode.name, 'タイトル');
+    assert.strictEqual(titleNode.value, 'StructMap 🚀');
 
     const tagsNode = fmNode.children[1];
     assert.strictEqual(tagsNode.name, 'タグ');
     assert.strictEqual(tagsNode.children[0].name, '[0]');
+    assert.strictEqual(tagsNode.children[0].value, '開発');
+    assert.strictEqual(tagsNode.children[1].value, 'ビジュアル');
 
     const contentNode = tree.root.children[1];
     assert.strictEqual(contentNode.children[0].name, '概要');
