@@ -1,14 +1,35 @@
 import * as vscode from 'vscode';
 import { StructMapService } from './core';
-import { StructMapTreeProvider } from './vscode/providers/StructMapTreeProvider';
+import {
+  NodeNavigator,
+  registerCommands,
+  StructMapTreeProvider,
+  ViewStateManager,
+} from './vscode';
 
 export function activate(context: vscode.ExtensionContext): void {
+  const viewStateManager = new ViewStateManager(context);
   const structMapService = new StructMapService();
-  const treeDataProvider = new StructMapTreeProvider(structMapService);
+  const nodeNavigator = new NodeNavigator();
+
+  const treeDataProvider = new StructMapTreeProvider(
+    structMapService,
+    () => vscode.window.activeTextEditor,
+    viewStateManager
+  );
 
   const treeView = vscode.window.createTreeView('structmap-solo.view', {
     treeDataProvider,
   });
+
+  registerCommands(
+    context,
+    treeDataProvider,
+    viewStateManager,
+    structMapService,
+    nodeNavigator
+  );
+
   let refreshTimer: ReturnType<typeof setTimeout> | undefined;
   const cancelPendingRefresh = (): void => {
     if (refreshTimer !== undefined) {

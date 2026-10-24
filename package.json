@@ -20,12 +20,72 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
-    "commands": [],
+    "commands": [
+      {
+        "command": "structmap-solo.copyTree",
+        "title": "Copy Tree",
+        "category": "StructMap",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "structmap-solo.toggleTypes",
+        "title": "Toggle Types",
+        "category": "StructMap",
+        "icon": "$(symbol-parameter)"
+      },
+      {
+        "command": "structmap-solo.toggleTreeStyle",
+        "title": "Toggle Tree Style",
+        "category": "StructMap",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "structmap-solo.toggleRoot",
+        "title": "Toggle Root",
+        "category": "StructMap",
+        "icon": "$(root-folder)"
+      },
+      {
+        "command": "structmap-solo.refresh",
+        "title": "Refresh",
+        "category": "StructMap",
+        "icon": "$(refresh)"
+      }
+    ],
     "views": {
       "explorer": [
         {
           "id": "structmap-solo.view",
           "name": "StructMap"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "structmap-solo.copyTree",
+          "when": "view == structmap-solo.view",
+          "group": "navigation@1"
+        },
+        {
+          "command": "structmap-solo.toggleTypes",
+          "when": "view == structmap-solo.view",
+          "group": "navigation@2"
+        },
+        {
+          "command": "structmap-solo.toggleTreeStyle",
+          "when": "view == structmap-solo.view",
+          "group": "navigation@3"
+        },
+        {
+          "command": "structmap-solo.toggleRoot",
+          "when": "view == structmap-solo.view",
+          "group": "navigation@4"
+        },
+        {
+          "command": "structmap-solo.refresh",
+          "when": "view == structmap-solo.view",
+          "group": "navigation@5"
         }
       ]
     },

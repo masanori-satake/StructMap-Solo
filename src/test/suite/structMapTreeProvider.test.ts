@@ -58,12 +58,12 @@ suite('StructMapTreeProvider Test Suite', () => {
     const children = provider.getChildren(rootItem) as StructTreeItem[];
     assert.strictEqual(children.length, 3);
 
-    const nameItem = children.find((c) => c.label === 'name');
+    const nameItem = children.find((c) => c.node?.name === 'name');
     assert.ok(nameItem);
     assert.strictEqual((nameItem.iconPath as vscode.ThemeIcon).id, 'symbol-field');
     assert.strictEqual(nameItem.description, 'test');
 
-    const itemsItem = children.find((c) => c.label === 'items');
+    const itemsItem = children.find((c) => c.node?.name === 'items');
     assert.ok(itemsItem);
     assert.strictEqual((itemsItem.iconPath as vscode.ThemeIcon).id, 'symbol-array');
   });
@@ -84,12 +84,12 @@ suite('StructMapTreeProvider Test Suite', () => {
     assert.strictEqual(children.length, 1);
 
     const serverItem = children[0];
-    assert.strictEqual(serverItem.label, 'server');
+    assert.strictEqual(serverItem.node?.name, 'server');
     assert.strictEqual((serverItem.iconPath as vscode.ThemeIcon).id, 'symbol-object');
 
     const serverChildren = provider.getChildren(serverItem) as StructTreeItem[];
     assert.strictEqual(serverChildren.length, 1);
-    assert.strictEqual(serverChildren[0].label, 'port');
+    assert.strictEqual(serverChildren[0].node?.name, 'port');
     assert.strictEqual(serverChildren[0].description, '8080');
     assert.strictEqual((serverChildren[0].iconPath as vscode.ThemeIcon).id, 'symbol-field');
   });
@@ -111,10 +111,12 @@ suite('StructMapTreeProvider Test Suite', () => {
     const jsonRoot = (jsonProvider.getChildren() as StructTreeItem[])[0];
     const jsonChildren = jsonProvider.getChildren(jsonRoot) as StructTreeItem[];
 
-    const objItem = jsonChildren.find((c) => c.label === 'obj')!;
+    const objItem = jsonChildren.find((c) => c.node?.name === 'obj')!;
+    assert.ok(objItem);
     assert.strictEqual((objItem.iconPath as vscode.ThemeIcon).id, 'symbol-object');
 
-    const arrItem = jsonChildren.find((c) => c.label === 'arr')!;
+    const arrItem = jsonChildren.find((c) => c.node?.name === 'arr')!;
+    assert.ok(arrItem);
     assert.strictEqual((arrItem.iconPath as vscode.ThemeIcon).id, 'symbol-array');
 
     const objChildren = jsonProvider.getChildren(objItem) as StructTreeItem[];
@@ -141,7 +143,7 @@ suite('StructMapTreeProvider Test Suite', () => {
     const rootItems = provider.getChildren() as StructTreeItem[];
     const rootChildren = provider.getChildren(rootItems[0]) as StructTreeItem[];
 
-    const fmItem = rootChildren.find((c) => c.label === 'Frontmatter (YAML)');
+    const fmItem = rootChildren.find((c) => c.node?.name === 'Frontmatter (YAML)');
     assert.ok(fmItem);
     assert.strictEqual(
       fmItem.collapsibleState,
