@@ -1,10 +1,15 @@
 import * as assert from 'assert';
 import * as fs from 'fs';
 import * as path from 'path';
-import { MarkdownParser } from '../../core';
+import { MarkdownParser, ParseErrorCode, ParseResult, ParseSuccess, StructTree } from '../../core';
 
 suite('MarkdownParser Test Suite', () => {
   const parser = new MarkdownParser();
+
+  function getTree(result: ParseResult): StructTree {
+    assert.strictEqual(result.type, 'success');
+    return (result as ParseSuccess).tree;
+  }
 
   test('AC-1 見出し構造を解析できる (H1-H6 hierarchy)', () => {
     const markdown = `# Project
@@ -15,7 +20,7 @@ suite('MarkdownParser Test Suite', () => {
 ##### Column
 ###### Type`;
 
-    const tree = parser.parse(markdown, 'README.md');
+    const tree = getTree(parser.parse(markdown, 'README.md'));
 
     assert.strictEqual(tree.sourceFormat, 'markdown');
     assert.strictEqual(tree.root.name, 'README.md');
@@ -72,7 +77,7 @@ Some description text.
 ### Still Not A Heading
 ~~~`;
 
-    const tree = parser.parse(markdown, 'DOCUMENT.md');
+    const tree = getTree(parser.parse(markdown, 'DOCUMENT.md'));
 
     assert.strictEqual(tree.root.children.length, 1);
     const projectNode = tree.root.children[0];
@@ -89,7 +94,7 @@ Some description text.
 ## 数据库
 ## 🚀 Release`;
 
-    const tree = parser.parse(markdown, 'README.md');
+    const tree = getTree(parser.parse(markdown, 'README.md'));
 
     const projectNode = tree.root.children[0];
     assert.strictEqual(projectNode.name, 'プロジェクト');
@@ -104,7 +109,7 @@ Some description text.
       const markdown = [
         opener, '# Visible', '```markdown', '# Hidden', '```', '# After'
       ].join('\n');
-      const tree = parser.parse(markdown);
+      const tree = getTree(parser.parse(markdown));
 
       assert.deepStrictEqual(tree.root.children.map(node => node.name),
         ['Visible', 'After'], JSON.stringify(opener));
@@ -115,7 +120,7 @@ Some description text.
     const markdown = [
       '~~~markdown `example`', '# Hidden', '~~~', '# After'
     ].join('\n');
-    const tree = parser.parse(markdown);
+    const tree = getTree(parser.parse(markdown));
 
     assert.deepStrictEqual(tree.root.children.map(node => node.name), ['After']);
   });
@@ -137,7 +142,7 @@ Some description text.
           '# Before', `${fence}markdown`, '# Hidden', closer,
           '# Still hidden', fence, '# After'
         ].join('\n');
-        const tree = parser.parse(markdown);
+        const tree = getTree(parser.parse(markdown));
 
         assert.deepStrictEqual(tree.root.children.map(node => node.name),
           ['Before', 'After'], JSON.stringify(closer));
@@ -150,7 +155,7 @@ Some description text.
           `   ${marker.repeat(3)}markdown`, '# Hidden',
           `   ${marker.repeat(length)} \t`, '# After'
         ].join('\r\n');
-        const tree = parser.parse(markdown);
+        const tree = getTree(parser.parse(markdown));
 
         assert.deepStrictEqual(tree.root.children.map(node => node.name), ['After']);
       }
@@ -161,7 +166,7 @@ Some description text.
         const markdown = [
           '# Before', `${indent}${marker.repeat(3)}markdown`, '# Visible unless fenced'
         ].join('\n');
-        const tree = parser.parse(markdown);
+        const tree = getTree(parser.parse(markdown));
         const expectedNames = indent.length <= 3 && !indent.includes('\t')
           ? ['Before'] : ['Before', 'Visible unless fenced'];
 
@@ -174,7 +179,7 @@ Some description text.
   test('Restricts heading indentation to at most three spaces and rejects tabs', () => {
     const indents = ['', ' ', '  ', '   ', '    ', '\t', ' \t', '\t '];
     const markdown = indents.map((indent, index) => `${indent}# Heading ${index}`).join('\n');
-    const tree = parser.parse(markdown);
+    const tree = getTree(parser.parse(markdown));
 
     assert.deepStrictEqual(tree.root.children.map(node => node.name),
       ['Heading 0', 'Heading 1', 'Heading 2', 'Heading 3']);
@@ -186,7 +191,7 @@ Some description text.
 ### B
 ###### C`;
 
-      const tree = parser.parse(markdown, 'README.md');
+      const tree = getTree(parser.parse(markdown, 'README.md'));
 
       assert.strictEqual(tree.root.children.length, 1);
       const nodeA = tree.root.children[0];
@@ -203,7 +208,7 @@ Some description text.
   });
 
   test('AC-5 Rootノード生成 (Sets root.name to specified fileName)', () => {
-    const tree = parser.parse('# Heading', 'custom-filename.md');
+    const tree = getTree(parser.parse('# Heading', 'custom-filename.md'));
     assert.strictEqual(tree.root.name, 'custom-filename.md');
     assert.strictEqual(tree.root.nodeType, 'root');
     assert.deepStrictEqual(tree.root.path, ['custom-filename.md']);
@@ -224,7 +229,7 @@ Some description text.
 ## User
 ## User`;
 
-    const tree = parser.parse(markdown, 'API.md');
+    const tree = getTree(parser.parse(markdown, 'API.md'));
 
     const apiNode = tree.root.children[0];
     assert.strictEqual(apiNode.name, 'API');
@@ -238,7 +243,7 @@ Some description text.
     const markdown = `# Title #
 ## Subtitle ###`;
 
-    const tree = parser.parse(markdown, 'doc.md');
+    const tree = getTree(parser.parse(markdown, 'doc.md'));
 
     const titleNode = tree.root.children[0];
     assert.strictEqual(titleNode.name, 'Title');
@@ -260,28 +265,28 @@ tags:
 # Overview
 ## Design`;
 
-    const tree = parser.parse(markdown, 'README.md');
+    const tree = getTree(parser.parse(markdown, 'README.md'));
 
     assert.strictEqual(tree.sourceFormat, 'markdown');
     assert.strictEqual(tree.root.name, 'README.md');
     assert.strictEqual(tree.root.nodeType, 'root');
     assert.strictEqual(tree.root.children.length, 2);
 
-    // AC-3 Section 1: Frontmatter (YAML)
+    // Section 1: Frontmatter (YAML)
     const fmNode = tree.root.children[0];
     assert.strictEqual(fmNode.name, 'Frontmatter (YAML)');
     assert.strictEqual(fmNode.nodeType, 'section');
     assert.deepStrictEqual(fmNode.path, ['README.md', 'Frontmatter (YAML)']);
     assert.strictEqual(fmNode.children.length, 2);
 
-    // AC-1: title value node
+    // title value node
     const titleNode = fmNode.children[0];
     assert.strictEqual(titleNode.name, 'title');
     assert.strictEqual(titleNode.nodeType, 'value');
     assert.strictEqual(titleNode.valueType, 'string');
     assert.deepStrictEqual(titleNode.path, ['README.md', 'Frontmatter (YAML)', 'title']);
 
-    // AC-1: tags array node
+    // tags array node
     const tagsNode = fmNode.children[1];
     assert.strictEqual(tagsNode.name, 'tags');
     assert.strictEqual(tagsNode.nodeType, 'array');
@@ -292,21 +297,21 @@ tags:
     assert.strictEqual(tagsNode.children[1].name, '[1]');
     assert.strictEqual(tagsNode.children[1].valueType, 'string');
 
-    // AC-3 Section 2: Content (Markdown)
+    // Section 2: Content (Markdown)
     const contentNode = tree.root.children[1];
     assert.strictEqual(contentNode.name, 'Content (Markdown)');
     assert.strictEqual(contentNode.nodeType, 'section');
     assert.deepStrictEqual(contentNode.path, ['README.md', 'Content (Markdown)']);
     assert.strictEqual(contentNode.children.length, 1);
 
-    // AC-2: Overview heading node
+    // Overview heading node
     const overviewNode = contentNode.children[0];
     assert.strictEqual(overviewNode.name, 'Overview');
     assert.strictEqual(overviewNode.nodeType, 'section');
     assert.deepStrictEqual(overviewNode.path, ['README.md', 'Content (Markdown)', 'Overview']);
     assert.strictEqual(overviewNode.children.length, 1);
 
-    // AC-2: Design heading node
+    // Design heading node
     const designNode = overviewNode.children[0];
     assert.strictEqual(designNode.name, 'Design');
     assert.strictEqual(designNode.nodeType, 'section');
@@ -317,7 +322,7 @@ tags:
     const markdown = `# Overview
 ## Design`;
 
-    const tree = parser.parse(markdown, 'README.md');
+    const tree = getTree(parser.parse(markdown, 'README.md'));
 
     assert.strictEqual(tree.root.children.length, 1);
     const overviewNode = tree.root.children[0];
@@ -325,19 +330,19 @@ tags:
     assert.deepStrictEqual(overviewNode.path, ['README.md', 'Overview']);
   });
 
-  test('Frontmatter AC-5: Invalid YAML syntax in frontmatter throws Error without crashing', () => {
-    const markdown = `---
-title: [unclosed array
-invalid yaml: : :
----
+  test('Frontmatter AC-3 & AC-4 & AC-5: Invalid YAML syntax in frontmatter returns ParseError without crashing', () => {
+    const markdown = '---\ntitle: [unclosed array\ninvalid: : :\n---\n\n# Overview';
 
-# Overview`;
+    const result = parser.parse(markdown, 'INVALID.md');
 
-    assert.throws(() => {
-      parser.parse(markdown, 'INVALID.md');
-    }, (err: Error) => {
-      return err instanceof Error && err.message.includes('YAML frontmatter parse error');
-    });
+    assert.strictEqual(result.type, 'error');
+    if (result.type === 'error') {
+      assert.strictEqual(result.code, ParseErrorCode.FRONTMATTER_PARSE_ERROR);
+      assert.ok(result.message.includes('Frontmatter Parse Error'));
+      assert.strictEqual(typeof result.line, 'number');
+      assert.strictEqual(typeof result.column, 'number');
+      assert.strictEqual(result.line, 3);
+    }
   });
 
   test('Frontmatter AC-6: Unicode characters in frontmatter keys and values are preserved', () => {
@@ -350,7 +355,7 @@ invalid yaml: : :
 
 # 概要`;
 
-    const tree = parser.parse(markdown, 'DOC.md');
+    const tree = getTree(parser.parse(markdown, 'DOC.md'));
 
     const fmNode = tree.root.children[0];
     assert.strictEqual(fmNode.name, 'Frontmatter (YAML)');

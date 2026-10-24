@@ -1,10 +1,15 @@
 import * as assert from 'assert';
 import * as fs from 'fs';
 import * as path from 'path';
-import { YamlParser } from '../../core';
+import { ParseErrorCode, ParseResult, ParseSuccess, StructTree, YamlParser } from '../../core';
 
 suite('YamlParser Test Suite', () => {
   const parser = new YamlParser();
+
+  function getTree(result: ParseResult): StructTree {
+    assert.strictEqual(result.type, 'success');
+    return (result as ParseSuccess).tree;
+  }
 
   test('AC-1 YAML解析: Converts YAML structure into StructNodes', () => {
     const yamlContent = `
@@ -13,7 +18,7 @@ project:
   design: {}
 `;
 
-    const tree = parser.parse(yamlContent, 'config.yaml');
+    const tree = getTree(parser.parse(yamlContent, 'config.yaml'));
     assert.strictEqual(tree.root.children.length, 1);
 
     const projectNode = tree.root.children[0];
@@ -42,7 +47,7 @@ active: true
 description: null
 `;
 
-    const tree = parser.parse(yamlContent, 'user.yaml');
+    const tree = getTree(parser.parse(yamlContent, 'user.yaml'));
     assert.strictEqual(tree.sourceFormat, 'yaml');
 
     const children = tree.root.children;
@@ -78,7 +83,7 @@ description: null
   絵文字: 🚀
 `;
 
-    const tree = parser.parse(yamlContent, 'unicode.yaml');
+    const tree = getTree(parser.parse(yamlContent, 'unicode.yaml'));
     const userNode = tree.root.children[0];
 
     assert.strictEqual(userNode.name, 'ユーザー');
@@ -93,7 +98,7 @@ description: null
 users: []
 `;
 
-    const tree = parser.parse(yamlContent, 'empty_array.yaml');
+    const tree = getTree(parser.parse(yamlContent, 'empty_array.yaml'));
     const usersNode = tree.root.children[0];
 
     assert.strictEqual(usersNode.name, 'users');
@@ -106,7 +111,7 @@ users: []
 settings: {}
 `;
 
-    const tree = parser.parse(yamlContent, 'empty_object.yaml');
+    const tree = getTree(parser.parse(yamlContent, 'empty_object.yaml'));
     const settingsNode = tree.root.children[0];
 
     assert.strictEqual(settingsNode.name, 'settings');
@@ -124,7 +129,7 @@ api:
   host: 'localhost'
 `;
 
-    const tree = parser.parse(yamlContent, 'anchors.yaml');
+    const tree = getTree(parser.parse(yamlContent, 'anchors.yaml'));
     const apiNode = tree.root.children.find((c) => c.name === 'api');
     assert.ok(apiNode);
     assert.strictEqual(apiNode.nodeType, 'object');
@@ -138,7 +143,7 @@ api:
     assert.strictEqual(hostChild.value, 'localhost');
   });
 
-  test('Rejects circular aliases in objects and arrays, including document roots', () => {
+  test('Rejects circular aliases in objects and arrays, returning ParseError', () => {
     for (const content of [
       '&root {self: *root}',
       '&root [*root]',
@@ -148,11 +153,16 @@ api:
       '&root {items: [*root]}',
       '&root [{parent: *root}]'
     ]) {
-      assert.throws(() => parser.parse(content, 'circular.yaml'),
-        /Cannot convert circular reference to StructTree/, content);
+      const result = parser.parse(content, 'circular.yaml');
+      assert.strictEqual(result.type, 'error');
+      if (result.type === 'error') {
+        assert.strictEqual(result.code, ParseErrorCode.YAML_PARSE_ERROR);
+        assert.ok(result.message.includes('Cannot convert circular reference'));
+      }
     }
 
-    assert.strictEqual(parser.parse('title: valid').root.children[0].value, 'valid');
+    const validTree = getTree(parser.parse('title: valid'));
+    assert.strictEqual(validTree.root.children[0].value, 'valid');
   });
 
   test('Expands shared object and array aliases independently', () => {
@@ -161,7 +171,7 @@ original: &obj {tags: &tags [開発, ビジュアル]}
 copy: *obj
 tags: *tags
 `;
-    const [original, copy, tags] = parser.parse(content, 'shared.yaml').root.children;
+    const [original, copy, tags] = getTree(parser.parse(content, 'shared.yaml')).root.children;
 
     assert.strictEqual(original.nodeType, 'object');
     assert.strictEqual(copy.nodeType, 'object');
@@ -178,8 +188,8 @@ tags: *tags
   });
 
   test('Preserves the first-element strategy when later elements contain circular aliases', () => {
-    const rootArray = parser.parse('&items [42, *items]').root.children;
-    const nestedArray = parser.parse('items: &items [42, *items]').root.children[0].children;
+    const rootArray = getTree(parser.parse('&items [42, *items]')).root.children;
+    const nestedArray = getTree(parser.parse('items: &items [42, *items]')).root.children[0].children;
 
     for (const children of [rootArray, nestedArray]) {
       assert.strictEqual(children.length, 1);
@@ -190,7 +200,7 @@ tags: *tags
   test('AC-7 Rootノード生成: Sets root.name to file name', () => {
     const yamlContent = 'key: value';
 
-    const tree = parser.parse(yamlContent, 'service.yml');
+    const tree = getTree(parser.parse(yamlContent, 'service.yml'));
 
     assert.strictEqual(tree.sourceFormat, 'yaml');
     assert.strictEqual(tree.root.name, 'service.yml');
@@ -198,7 +208,7 @@ tags: *tags
     assert.deepStrictEqual(tree.root.path, ['service.yml']);
 
     // Default file name test
-    const defaultTree = parser.parse(yamlContent);
+    const defaultTree = getTree(parser.parse(yamlContent));
     assert.strictEqual(defaultTree.root.name, 'root');
     assert.deepStrictEqual(defaultTree.root.path, ['root']);
   });
@@ -220,7 +230,7 @@ users:
   - name: Bob
 `;
 
-    const tree = parser.parse(yamlContent, 'users.yaml');
+    const tree = getTree(parser.parse(yamlContent, 'users.yaml'));
     const usersNode = tree.root.children[0];
 
     assert.strictEqual(usersNode.name, 'users');
@@ -234,21 +244,26 @@ users:
     assert.strictEqual(firstItem.children[0].value, 'Alice');
   });
 
-  test('Invalid YAML syntax throws error', () => {
-    const invalidYaml = `
-key: : invalid
-  nested
-`;
-    assert.throws(() => {
-      parser.parse(invalidYaml, 'invalid.yaml');
-    }, /YAML parse error/);
+  test('AC-2 & AC-4 & AC-5 & AC-6: Invalid YAML syntax returns ParseError with line/column', () => {
+    const invalidYaml = 'user:\n  name:\n  age';
+    const result = parser.parse(invalidYaml, 'invalid.yaml');
+
+    assert.strictEqual(result.type, 'error');
+    if (result.type === 'error') {
+      assert.strictEqual(result.code, ParseErrorCode.YAML_PARSE_ERROR);
+      assert.ok(result.message.includes('YAML Parse Error'));
+      assert.strictEqual(typeof result.line, 'number');
+      assert.strictEqual(typeof result.column, 'number');
+      assert.strictEqual(result.line, 3);
+      assert.strictEqual(result.column, 6);
+    }
   });
 
-  test('Empty string or comment-only YAML handling', () => {
-    const emptyTree = parser.parse('', 'empty.yaml');
+  test('Empty string or comment-only YAML handling returns ParseSuccess', () => {
+    const emptyTree = getTree(parser.parse('', 'empty.yaml'));
     assert.strictEqual(emptyTree.root.children.length, 0);
 
-    const commentTree = parser.parse('# Just a comment', 'comment.yaml');
+    const commentTree = getTree(parser.parse('# Just a comment', 'comment.yaml'));
     assert.strictEqual(commentTree.root.children.length, 1);
     assert.strictEqual(commentTree.root.children[0].nodeType, 'value');
     assert.strictEqual(commentTree.root.children[0].valueType, 'null');

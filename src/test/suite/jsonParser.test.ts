@@ -1,10 +1,15 @@
 import * as assert from 'assert';
 import * as fs from 'fs';
 import * as path from 'path';
-import { JsonParser } from '../../core';
+import { JsonParser, ParseErrorCode, ParseResult, ParseSuccess, StructTree } from '../../core';
 
 suite('JsonParser Test Suite', () => {
   const parser = new JsonParser();
+
+  function getTree(result: ParseResult): StructTree {
+    assert.strictEqual(result.type, 'success');
+    return (result as ParseSuccess).tree;
+  }
 
   test('AC-1 Object解析: Converts object structures into StructNodes', () => {
     const json = JSON.stringify({
@@ -14,7 +19,7 @@ suite('JsonParser Test Suite', () => {
       }
     });
 
-    const tree = parser.parse(json, 'config.json');
+    const tree = getTree(parser.parse(json, 'config.json'));
     assert.strictEqual(tree.root.children.length, 1);
 
     const projectNode = tree.root.children[0];
@@ -43,7 +48,7 @@ suite('JsonParser Test Suite', () => {
       description: null
     });
 
-    const tree = parser.parse(json, 'user.json');
+    const tree = getTree(parser.parse(json, 'user.json'));
     const children = tree.root.children;
 
     assert.strictEqual(children.length, 4);
@@ -81,7 +86,7 @@ suite('JsonParser Test Suite', () => {
       ]
     });
 
-    const tree = parser.parse(json, 'data.json');
+    const tree = getTree(parser.parse(json, 'data.json'));
     const usersNode = tree.root.children[0];
 
     assert.strictEqual(usersNode.name, 'users');
@@ -115,7 +120,7 @@ suite('JsonParser Test Suite', () => {
       ]
     });
 
-    const tree = parser.parse(json, 'users.json');
+    const tree = getTree(parser.parse(json, 'users.json'));
     const usersNode = tree.root.children[0];
 
     assert.strictEqual(usersNode.children.length, 1);
@@ -133,7 +138,7 @@ suite('JsonParser Test Suite', () => {
       users: []
     });
 
-    const tree = parser.parse(json, 'empty_array.json');
+    const tree = getTree(parser.parse(json, 'empty_array.json'));
     const usersNode = tree.root.children[0];
 
     assert.strictEqual(usersNode.name, 'users');
@@ -146,7 +151,7 @@ suite('JsonParser Test Suite', () => {
       settings: {}
     });
 
-    const tree = parser.parse(json, 'empty_object.json');
+    const tree = getTree(parser.parse(json, 'empty_object.json'));
     const settingsNode = tree.root.children[0];
 
     assert.strictEqual(settingsNode.name, 'settings');
@@ -162,7 +167,7 @@ suite('JsonParser Test Suite', () => {
       }
     });
 
-    const tree = parser.parse(json, 'unicode.json');
+    const tree = getTree(parser.parse(json, 'unicode.json'));
     const userNode = tree.root.children[0];
 
     assert.strictEqual(userNode.name, 'ユーザー');
@@ -175,7 +180,7 @@ suite('JsonParser Test Suite', () => {
   test('AC-8 Rootノード生成: Sets root.name to file name', () => {
     const json = JSON.stringify({ key: 'value' });
 
-    const tree = parser.parse(json, 'config.json');
+    const tree = getTree(parser.parse(json, 'config.json'));
 
     assert.strictEqual(tree.sourceFormat, 'json');
     assert.strictEqual(tree.root.name, 'config.json');
@@ -183,7 +188,7 @@ suite('JsonParser Test Suite', () => {
     assert.deepStrictEqual(tree.root.path, ['config.json']);
 
     // Default file name test
-    const defaultTree = parser.parse(json);
+    const defaultTree = getTree(parser.parse(json));
     assert.strictEqual(defaultTree.root.name, 'root');
     assert.deepStrictEqual(defaultTree.root.path, ['root']);
   });
@@ -200,23 +205,46 @@ suite('JsonParser Test Suite', () => {
 
   test('Top-level primitives, empty root object/array, and array of primitives', () => {
     // Top level scalar
-    const numTree = parser.parse('42', 'num.json');
+    const numTree = getTree(parser.parse('42', 'num.json'));
     assert.strictEqual(numTree.root.children.length, 1);
     assert.strictEqual(numTree.root.children[0].nodeType, 'value');
     assert.strictEqual(numTree.root.children[0].value, 42);
 
     // Top level array of primitives
-    const arrTree = parser.parse('[10, 20, 30]', 'arr.json');
+    const arrTree = getTree(parser.parse('[10, 20, 30]', 'arr.json'));
     assert.strictEqual(arrTree.root.children.length, 1);
     assert.strictEqual(arrTree.root.children[0].name, '[0]');
     assert.strictEqual(arrTree.root.children[0].value, 10);
 
     // Top level empty object
-    const emptyObjTree = parser.parse('{}', 'empty.json');
+    const emptyObjTree = getTree(parser.parse('{}', 'empty.json'));
     assert.strictEqual(emptyObjTree.root.children.length, 0);
 
     // Top level empty array
-    const emptyArrTree = parser.parse('[]', 'empty_arr.json');
+    const emptyArrTree = getTree(parser.parse('[]', 'empty_arr.json'));
     assert.strictEqual(emptyArrTree.root.children.length, 0);
+  });
+
+  test('AC-1 & AC-4 & AC-5 & AC-6: JSON構文エラーでParseErrorが返り、Line/Columnを保持しアプリがクラッシュしない', () => {
+    const invalidJson = '{\n  "name":';
+    const result = parser.parse(invalidJson, 'invalid.json');
+
+    assert.strictEqual(result.type, 'error');
+    if (result.type === 'error') {
+      assert.strictEqual(result.code, ParseErrorCode.JSON_PARSE_ERROR);
+      assert.ok(result.message.includes('JSON Parse Error'));
+      assert.strictEqual(typeof result.line, 'number');
+      assert.strictEqual(typeof result.column, 'number');
+      assert.strictEqual(result.line, 2);
+    }
+  });
+
+  test('JSON error on empty string input does not crash and returns ParseError', () => {
+    const result = parser.parse('');
+    assert.strictEqual(result.type, 'error');
+    if (result.type === 'error') {
+      assert.strictEqual(result.code, ParseErrorCode.JSON_PARSE_ERROR);
+      assert.ok(result.message.includes('JSON Parse Error'));
+    }
   });
 });
