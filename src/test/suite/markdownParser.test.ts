@@ -99,6 +99,27 @@ Some description text.
     assert.strictEqual(projectNode.children[1].name, '🚀 Release');
   });
 
+  test('Rejects backtick opening fences with backticks in the info string', () => {
+    for (const opener of ['```lang`', '```markdown `example`', '   ````lang\\`x']) {
+      const markdown = [
+        opener, '# Visible', '```markdown', '# Hidden', '```', '# After'
+      ].join('\n');
+      const tree = parser.parse(markdown);
+
+      assert.deepStrictEqual(tree.root.children.map(node => node.name),
+        ['Visible', 'After'], JSON.stringify(opener));
+    }
+  });
+
+  test('Accepts tilde opening fences with backticks in the info string', () => {
+    const markdown = [
+      '~~~markdown `example`', '# Hidden', '~~~', '# After'
+    ].join('\n');
+    const tree = parser.parse(markdown);
+
+    assert.deepStrictEqual(tree.root.children.map(node => node.name), ['After']);
+  });
+
   for (const marker of ['`', '~']) {
     test(`Ignores invalid closing fences for ${marker} code blocks`, () => {
       const fence = marker.repeat(4);

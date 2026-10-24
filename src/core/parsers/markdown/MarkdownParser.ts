@@ -49,7 +49,8 @@ export class MarkdownParser {
         continue;
       }
 
-      if (fenceMatch) {
+      if (fenceMatch && (fenceMatch[1][0] !== '`'
+        || !line.slice(fenceMatch[0].length).includes('`'))) {
         codeFence = fenceMatch[1];
         continue;
       }
