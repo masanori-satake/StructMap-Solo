@@ -213,7 +213,7 @@ export class NodeNavigator {
         cursor = pos;
       } else {
         // Property key
-        const keyPattern = `"${key}"`;
+        const keyPattern = `"${this.escapeRegExp(key)}"`;
         const keyPos = text.indexOf(keyPattern, cursor);
         if (keyPos === -1) {
           return undefined;
@@ -307,17 +307,14 @@ export class NodeNavigator {
             continue;
           }
           const indent = this.getIndent(line);
-          const arrayItemMatch = line.match(/^(\s*)-\s+/);
-          if (
-            i > currentLine && minIndent !== -1 &&
-            indent < (arrayItemMatch ? minIndent - 1 : minIndent)
-          ) {
+          if (i > currentLine && minIndent !== -1 && indent < minIndent) {
             break; // left parent scope
           }
 
+          const arrayItemMatch = line.match(/^(\s*)-\s+/);
           if (arrayItemMatch) {
             const itemIndent = arrayItemMatch[1].length;
-            if (minIndent === -1 || itemIndent >= minIndent - 1) {
+            if (minIndent === -1 || itemIndent >= minIndent) {
               foundIdx++;
               if (foundIdx === targetIdx) {
                 foundLine = i;
