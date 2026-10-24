@@ -104,6 +104,44 @@ suite('StructMapService Test Suite', () => {
     }
   });
 
+  test('File Size Protection: 上限超過の空白文書は EMPTY_FILE より FILE_TOO_LARGE を優先する', () => {
+    const limitBytes = 5 * 1024 * 1024;
+    const result = service.build('whitespace.json', ' '.repeat(limitBytes + 1024));
+
+    assert.strictEqual(result.type, 'error');
+    if (result.type === 'error') {
+      assert.strictEqual(result.code, ParseErrorCode.FILE_TOO_LARGE);
+      assert.strictEqual(result.message, 'Current: 5.0009765625 MB\nLimit: 5 MB');
+    }
+
+    const atLimitResult = service.build('whitespace.json', ' '.repeat(limitBytes));
+    assert.strictEqual(atLimitResult.type, 'error');
+    if (atLimitResult.type === 'error') {
+      assert.strictEqual(atLimitResult.code, ParseErrorCode.EMPTY_FILE);
+    }
+
+    const unlimitedResult = service.build('whitespace.json', ' '.repeat(limitBytes + 1024), 0);
+    assert.strictEqual(unlimitedResult.type, 'error');
+    if (unlimitedResult.type === 'error') {
+      assert.strictEqual(unlimitedResult.code, ParseErrorCode.EMPTY_FILE);
+    }
+  });
+
+  test('File Size Protection: 1 KB または 1 バイトの超過も現在サイズの表示に残る', () => {
+    for (const extraBytes of [1024, 1]) {
+      const result = service.build('large.md', 'x'.repeat(5 * 1024 * 1024 + extraBytes));
+
+      assert.strictEqual(result.type, 'error');
+      if (result.type === 'error') {
+        assert.strictEqual(result.code, ParseErrorCode.FILE_TOO_LARGE);
+        const match = result.message.match(/^Current: ([^\s]+) MB\nLimit: 5 MB$/);
+        assert.ok(match);
+        assert.ok(Number(match[1]) > 5);
+        assert.strictEqual((Number(match[1]) - 5) * 1024 * 1024, extraBytes);
+      }
+    }
+  });
+
   test('AC-6 ParseError伝播: Parserエラーが失われない', () => {
     // Invalid JSON
     const jsonResult = service.build('invalid.json', '{\n  "name":');

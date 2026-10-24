@@ -27,13 +27,6 @@ export class StructMapService {
       );
     }
 
-    if (!content || content.trim() === '') {
-      return createParseError(
-        ParseErrorCode.EMPTY_FILE,
-        `File is empty: ${fileName}`
-      );
-    }
-
     const contentSizeBytes =
       typeof Buffer !== 'undefined'
         ? Buffer.byteLength(content, 'utf8')
@@ -41,13 +34,16 @@ export class StructMapService {
     const contentSizeMB = contentSizeBytes / (1024 * 1024);
 
     if (maxFileSizeMB > 0 && contentSizeMB > maxFileSizeMB) {
-      const currentMBStr =
-        contentSizeMB % 1 === 0
-          ? contentSizeMB.toString()
-          : parseFloat(contentSizeMB.toFixed(1)).toString();
       return createParseError(
         ParseErrorCode.FILE_TOO_LARGE,
-        `Current: ${currentMBStr} MB\nLimit: ${maxFileSizeMB} MB`
+        `Current: ${contentSizeMB} MB\nLimit: ${maxFileSizeMB} MB`
+      );
+    }
+
+    if (!content || content.trim() === '') {
+      return createParseError(
+        ParseErrorCode.EMPTY_FILE,
+        `File is empty: ${fileName}`
       );
     }
 
