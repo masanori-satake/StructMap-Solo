@@ -15,10 +15,41 @@
     "Visualization",
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onView:structmap-solo.view"
+  ],
   "main": "./out/extension.js",
   "contributes": {
-    "commands": []
+    "commands": [],
+    "views": {
+      "explorer": [
+        {
+          "id": "structmap-solo.view",
+          "name": "StructMap"
+        }
+      ]
+    },
+    "configuration": {
+      "type": "object",
+      "title": "StructMap",
+      "properties": {
+        "structMap.autoRefresh": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic refresh of StructMap view."
+        },
+        "structMap.debounceMs": {
+          "type": "number",
+          "default": 300,
+          "description": "Debounce delay for StructMap view updates in milliseconds."
+        },
+        "structMap.maxFileSizeMB": {
+          "type": "number",
+          "default": 5,
+          "description": "Maximum file size in megabytes to process."
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
