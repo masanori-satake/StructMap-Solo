@@ -69,6 +69,21 @@ suite('NodeNavigator Test Suite', () => {
     }
   });
 
+  test('JSON keys containing regular expression characters are located literally', () => {
+    for (const key of ['a.b', 'a+b', 'settings[prod]']) {
+      const content = JSON.stringify({ [key]: { value: true } }, null, 2);
+      const doc = createMockDocument('data.json', content, 'json');
+      const result = service.build('data.json', content);
+      assert.strictEqual(result.type, 'success');
+
+      if (result.type === 'success') {
+        const keyNode = result.tree.root.children[0];
+        assert.deepStrictEqual(navigator.findNodePosition(doc, keyNode), new vscode.Position(1, 2));
+        assert.deepStrictEqual(navigator.findNodePosition(doc, keyNode.children[0]), new vscode.Position(2, 4));
+      }
+    }
+  });
+
   test('AC-3: YAML node location finding', () => {
     const yamlContent = 'server:\n  port: 8080\nusers:\n  - name: Alice';
     const doc = createMockDocument('config.yaml', yamlContent, 'yaml');
@@ -85,6 +100,35 @@ suite('NodeNavigator Test Suite', () => {
       assert.strictEqual(posPort.line, 1);
     }
   });
+
+  for (const indent of ['', '  ']) {
+    test(`YAML sequences with ${indent.length} extra indentation spaces stay within the parent scope`, () => {
+      const content = [
+        'server:',
+        '  users:',
+        `  ${indent}- name: Alice`,
+        `  ${indent}- name: Bob`,
+        '  other:',
+        '  - name: Carol',
+      ].join('\n');
+      const doc = createMockDocument('config.yaml', content, 'yaml');
+      const result = service.build('config.yaml', content);
+      assert.strictEqual(result.type, 'success');
+
+      if (result.type === 'success') {
+        const users = result.tree.root.children[0].children[0];
+        const firstItem = users.children[0];
+        assert.deepStrictEqual(navigator.findNodePosition(doc, firstItem), new vscode.Position(2, 0));
+        assert.deepStrictEqual(navigator.findNodePosition(doc, firstItem.children[0]), new vscode.Position(2, 4 + indent.length));
+
+        const secondItem = { ...firstItem, name: '[1]', path: [...users.path, '[1]'] };
+        assert.deepStrictEqual(navigator.findNodePosition(doc, secondItem), new vscode.Position(3, 0));
+
+        const missingItem = { ...firstItem, name: '[2]', path: [...users.path, '[2]'] };
+        assert.strictEqual(navigator.findNodePosition(doc, missingItem), undefined);
+      }
+    });
+  }
 
   test('Gracefully handle missing or invalid node location', () => {
     const doc = createMockDocument('test.md', 'Hello', 'markdown');
