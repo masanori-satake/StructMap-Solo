@@ -23,7 +23,7 @@ function formatNodeLabel(node: StructNode, options: RenderOptions): string {
     return node.name;
   } else {
     if (node.nodeType === 'array') {
-      return `${node.name} []`;
+      return node.children.length === 0 ? `${node.name} []` : node.name;
     }
     if (node.nodeType === 'object') {
       return node.children.length === 0 ? `${node.name} {}` : node.name;
