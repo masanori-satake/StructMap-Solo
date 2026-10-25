@@ -158,8 +158,9 @@ if (checkBump) {
         const basePkg = JSON.parse(basePkgContent);
         const baseVersion = basePkg.version;
 
-        // Get diff files compared to baseRef
-        const diffOutput = execSync(`git diff --name-only ${baseRef}`, { encoding: 'utf8' }).trim();
+        // Get diff files compared to merge-base of HEAD and baseRef
+        const mergeBase = execSync(`git merge-base HEAD ${baseRef}`, { encoding: 'utf8' }).trim();
+        const diffOutput = execSync(`git diff --name-only ${mergeBase}`, { encoding: 'utf8' }).trim();
         const untrackedOutput = execSync('git ls-files -o --exclude-standard', { encoding: 'utf8' }).trim();
 
         const diffFiles = diffOutput ? diffOutput.split('\n') : [];
