@@ -2,6 +2,13 @@
 
 "StructMap-Solo" 拡張機能のすべての注目すべき変更はこのファイルに記録されます。
 
+## [1.0.1] - 2026-10-25
+
+### 修正 (Fixed)
+- `.vscodeignore` による `node_modules` の誤除外を修正し、パッケージに実行時依存パッケージ（`js-yaml`）が含まれるように修正
+- 拡張機能のアクティベーション失敗により `structmap-solo.refresh` 等のコマンドが見つからなくなる不具合（`command 'structmap-solo.refresh' not found`）を解消
+- `activationEvents` に対象言語（`onLanguage:markdown`, `onLanguage:json`, `onLanguage:yaml`）を追加
+
 ## [1.0.0] - 2026-10-25
 
 ### 初版リリース (Initial Release)
