@@ -1,4 +1,4 @@
-# StructMap-Solo
+# StructMap-Solo v1.0.0
 
 <p align="center">
   <img src="assets/icon.png" width="128" height="128" alt="StructMap-Solo Logo" />
