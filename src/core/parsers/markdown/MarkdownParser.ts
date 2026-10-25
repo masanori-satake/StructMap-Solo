@@ -166,9 +166,10 @@ export class MarkdownParser {
       let codeFence: string | undefined;
 
       for (const line of bodyLines) {
-        const fenceMatch = line.match(/^ {0,3}(`{3,}|~{3,})/);
-
+        // Fast-path: When outside a code fence, skip lines that cannot start a code fence or ATX heading.
+        // ATX headings and code fences permit 0 to 3 leading spaces/tabs.
         if (codeFence) {
+          const fenceMatch = line.match(/^ {0,3}(`{3,}|~{3,})/);
           if (
             fenceMatch &&
             fenceMatch[1][0] === codeFence[0] &&
@@ -179,6 +180,26 @@ export class MarkdownParser {
           }
           continue;
         }
+
+        let startIdx = 0;
+        const lineLen = line.length;
+        while (
+          startIdx < lineLen &&
+          startIdx < 4 &&
+          (line.charCodeAt(startIdx) === 32 || line.charCodeAt(startIdx) === 9)
+        ) {
+          startIdx++;
+        }
+
+        if (startIdx < lineLen) {
+          const ch = line.charCodeAt(startIdx);
+          // Character codes: '#' is 35, '`' is 96, '~' is 126
+          if (ch !== 35 && ch !== 96 && ch !== 126) {
+            continue;
+          }
+        }
+
+        const fenceMatch = line.match(/^ {0,3}(`{3,}|~{3,})/);
 
         if (
           fenceMatch &&
