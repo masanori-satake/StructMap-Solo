@@ -360,7 +360,7 @@ export class NodeNavigator {
           const arrayItemMatch = line.match(/^(\s*)-\s+/);
           if (arrayItemMatch) {
             const itemIndent = arrayItemMatch[1].length;
-            if (minIndent === -1 || itemIndent >= minIndent) {
+            if (minIndent === -1 || itemIndent >= minIndent - 1) {
               if (targetIndent === -1) {
                 targetIndent = itemIndent;
               }
@@ -372,6 +372,9 @@ export class NodeNavigator {
                 }
               }
             }
+          } else if (i > currentLine && targetIndent !== -1 && indent <= targetIndent) {
+            // Sibling property key at parent/same indent level terminates array search
+            break;
           }
         }
 
