@@ -28,7 +28,7 @@ StructMap-Solo は、以下の原則に基づいて設計されています：
 3. **Unified Data Model (統一ドキュメント木)**:
    - 元のフォーマット（Markdown, JSON, YAML 等）に依存せず、すべてのファイルを統一データモデル `StructTree` / `StructNode` に変換して扱います。
 4. **Deterministic & Safe Parsing (決定論的・安全性)**:
-   - パース処理は例外 (`throw`) を外部に漏らさず、安全な `ParseResult` (`ParseSuccess` / `ParseError`)Result型パターンを返却します。
+   - パース処理は例外 (`throw`) を外部に漏らさず、安全な `ParseResult` 型パターン (`ParseSuccess` / `ParseError`) を返却します。
 
 ---
 

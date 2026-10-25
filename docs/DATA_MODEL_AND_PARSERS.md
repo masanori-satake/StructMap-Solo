@@ -32,7 +32,7 @@ classDiagram
         +string[] path
         +NodeType nodeType
         +ValueType valueType
-        +any value
+        +string | number | boolean | null value
         +StructNode[] children
         +boolean isRange
     }
@@ -79,7 +79,7 @@ classDiagram
 | `valueType` | `ValueType` | No | `nodeType === 'value'` の場合の不変データ型（`string`, `number`, `boolean`, `null`）。 |
 | `value` | `string \| number \| boolean \| null` | No | `nodeType === 'value'` の場合のスカラー値。TreeView の `description` やホバー表示に利用。 |
 | `children` | `StructNode[]` | Yes | 子ノード要素の配列（子がない場合は空配列 `[]`）。 |
-| `isRange` | `boolean` | No | 配列要素数が `maxArrayItems` を超えた場合に自動生成される範囲ノード（例: `[1 .. 50]`）を示すフラグ。 |
+| `isRange` | `boolean` | No | 配列要素数が `maxArrayItems` を超えた場合に自動生成される範囲ノード（例: `[0 .. 49]`）を示すフラグ。 |
 
 ---
 
@@ -94,7 +94,7 @@ classDiagram
     }
 
     class ParseSuccess {
-        +boolean success = true
+        +type: 'success'
         +StructTree tree
     }
 
@@ -173,11 +173,11 @@ graph TD
 ```text
 [元の巨大な配列: 120件]
   └─ items
-      ├─ [1 .. 50]
+      ├─ [0 .. 49]
       │   ├─ [0]
       │   └─ ...
-      ├─ [51 .. 100]
-      └─ [101 .. 120]
+      ├─ [50 .. 99]
+      └─ [100 .. 119]
 ```
 
 ---

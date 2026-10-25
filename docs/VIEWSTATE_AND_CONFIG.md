@@ -51,7 +51,7 @@ classDiagram
 
 ## 2. VSCode 拡張機能設定 (Configuration)
 
-`package.json` の `contributes.configuration` で公開されているユーザー設定項目一覧です。設定変更はリアルタイムにエディタの再パース・挙動に反映されます。
+`package.json` の `contributes.configuration` で公開されているユーザー設定項目一覧です。設定変更は、拡張機能が次に設定を読み込む時点（エディタ切り替え、文書編集、手動更新など）で反映されます。設定変更自体による再パース・再描画は行われません。
 
 | 設定キー | 型 | 既定値 | 説明 |
 | :--- | :---: | :---: | :--- |

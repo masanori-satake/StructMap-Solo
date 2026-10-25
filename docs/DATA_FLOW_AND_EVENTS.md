@@ -88,19 +88,27 @@ sequenceDiagram
     U->>VS: エディタタブを切り替え
     VS->>Ext: onDidChangeActiveTextEditor(editor)
     Ext->>Ext: cancelPendingRefresh() (既存デバウンスタイマー解除)
-    Ext->>Svc: supportsTypes(editor.document.fileName)
-    Svc-->>Ext: boolean (JSON/YAMLなら true, MDなら false)
-    Ext->>VS: setContext('structmap.typesSupported', boolean)
-
-    alt autoRefresh が有効
+    alt editor === undefined
+        Ext->>VS: setContext('structmap-solo.typesSupported', false)
         Ext->>TP: refresh()
         TP->>TP: _onDidChangeTreeData.fire()
         TV->>TP: getChildren(undefined)
-        TP->>Svc: build(fileName, content, ...)
-        Svc-->>TP: ParseResult
-        TP-->>TV: 更新された StructTreeItem[]
-    else autoRefresh が無効
-        Ext-->>Ext: 処理をスキップ (更新しない)
+        TP-->>TV: No Active Editor 表示用の StructTreeItem[]
+    else editor が存在する
+        Ext->>Svc: supportsTypes(editor.document.fileName)
+        Svc-->>Ext: boolean (JSON/YAMLなら true, MDなら false)
+        Ext->>VS: setContext('structmap-solo.typesSupported', boolean)
+
+        alt autoRefresh が有効
+            Ext->>TP: refresh()
+            TP->>TP: _onDidChangeTreeData.fire()
+            TV->>TP: getChildren(undefined)
+            TP->>Svc: build(fileName, content, ...)
+            Svc-->>TP: ParseResult
+            TP-->>TV: 更新された StructTreeItem[]
+        else autoRefresh が無効
+            Ext-->>Ext: 処理をスキップ (更新しない)
+        end
     end
 ```
 
@@ -215,5 +223,11 @@ sequenceDiagram
     Cmd->>Ren: render(tree, renderOptions)
     Ren-->>Cmd: 罫線付きツリーテキスト文字列
     Cmd->>Clip: writeText(text)
-    Cmd->>U: 情報メッセージ表示 ("Tree copied to clipboard")
+    alt writeText が成功
+        Clip-->>Cmd: 書き込み完了 (Promise 解決)
+        Cmd->>U: 情報メッセージ表示 ("Tree copied to clipboard")
+    else writeText が拒否
+        Clip-->>Cmd: エラー (Promise 拒否)
+        Note over Cmd: 明示的な拒否処理がないためエラーが呼び出し元へ伝播し、成功メッセージは表示されない
+    end
 ```
