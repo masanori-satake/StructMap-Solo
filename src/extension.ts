@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { StructMapService } from './core';
+import { setStructMapTreeView, updateTreeStyleDescription } from './vscode/view/StructMapView';
 import {
   NodeNavigator,
   registerCommands,
@@ -19,7 +20,15 @@ export function activate(context: vscode.ExtensionContext): void {
     viewStateManager
   );
 
-  const treeView = vscode.window.createTreeView('structmap-solo.view', {
+  
+
+const treeView = vscode.window.createTreeView('structmap-solo.view', {
+    treeDataProvider,
+  });
+  // Register the tree view globally for description updates
+  setStructMapTreeView(treeView);
+  // Initialize description with current tree style
+  updateTreeStyleDescription(viewStateManager.getState().treeStyle);
     treeDataProvider,
   });
 

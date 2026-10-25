@@ -3,6 +3,7 @@ import { isParseSuccess, StructMapService, StructNode, TreeRenderer } from '../.
 import { NodeNavigator } from '../navigation/NodeNavigator';
 import { StructMapTreeProvider } from '../providers/StructMapTreeProvider';
 import { ViewStateManager } from '../state/ViewState';
+import { updateTreeStyleDescription } from '../view/StructMapView';
 
 /**
  * Updates the VS Code context key indicating whether the active document supports type toggle.
@@ -89,6 +90,12 @@ export function registerCommands(
     }),
 
     vscode.commands.registerCommand('structmap-solo.toggleTreeStyle', async () => {
+      const currentState = viewStateManager.getState();
+      const nextStyle = currentState.treeStyle === 'unicode' ? 'ascii' : 'unicode';
+      await viewStateManager.setTreeStyle(nextStyle);
+      // Update view description to reflect current style
+      updateTreeStyleDescription(nextStyle);
+      treeDataProvider.refresh();
       const currentState = viewStateManager.getState();
       const nextStyle = currentState.treeStyle === 'unicode' ? 'ascii' : 'unicode';
       await viewStateManager.setTreeStyle(nextStyle);
