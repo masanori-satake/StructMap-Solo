@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { StructMapService } from './core';
-import { setStructMapTreeView, updateTreeStyleDescription } from './vscode/view/StructMapView';
+import { setStructMapTreeView } from './vscode/view/StructMapView';
+import { updateTreeStyleDescription } from './vscode/view/StructMapView';
 import {
   NodeNavigator,
   registerCommands,

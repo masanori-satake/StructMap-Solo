@@ -9,7 +9,7 @@ export let structMapTreeView: vscode.TreeView<vscode.TreeItem> | undefined;
 /**
  * Set the TreeView instance after creation. Called from extension activation.
  */
-export function setStructMapTreeView(view: vscode.TreeView<any>): void {
+export function setStructMapTreeView(view: vscode.TreeView<vscode.TreeItem>): void {
   structMapTreeView = view;
 }
 
