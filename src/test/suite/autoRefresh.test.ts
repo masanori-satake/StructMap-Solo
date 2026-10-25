@@ -11,7 +11,12 @@ suite('Extension automatic refresh', () => {
     const document = { uri: vscode.Uri.parse('untitled:active.md') };
     const window = {
       activeTextEditor: { document },
-      createTreeView: () => new vscode.Disposable(() => {}),
+      // Return a mock TreeView with description and dispose
+      createTreeView: () => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const view = { description: '', dispose: () => {} } as unknown as vscode.TreeView<vscode.TreeItem>;
+        return view;
+      },
       onDidChangeActiveTextEditor: editors.event,
     };
     const settings = { autoRefresh: true, debounceMs: 100 };
@@ -46,6 +51,12 @@ suite('Extension automatic refresh', () => {
             registerCommands: () => {},
             updateTypesSupportedContext: () => Promise.resolve(),
           };
+          case './vscode/view/StructMapView':
+          case './vscode/view/StructMapView.js':
+            return {
+              setStructMapTreeView: () => { /* no‑op */ },
+              updateTreeStyleDescription: () => { /* no‑op */ },
+            };
           default: throw new Error(`Unexpected import: ${id}`);
         }
       },
