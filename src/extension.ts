@@ -4,6 +4,7 @@ import {
   NodeNavigator,
   registerCommands,
   StructMapTreeProvider,
+  updateTypesSupportedContext,
   ViewStateManager,
 } from './vscode';
 
@@ -30,6 +31,8 @@ export function activate(context: vscode.ExtensionContext): void {
     nodeNavigator
   );
 
+  updateTypesSupportedContext(vscode.window.activeTextEditor, structMapService);
+
   let refreshTimer: ReturnType<typeof setTimeout> | undefined;
   const cancelPendingRefresh = (): void => {
     if (refreshTimer !== undefined) {
@@ -43,6 +46,7 @@ export function activate(context: vscode.ExtensionContext): void {
     new vscode.Disposable(cancelPendingRefresh),
     vscode.window.onDidChangeActiveTextEditor((editor) => {
       cancelPendingRefresh();
+      updateTypesSupportedContext(editor, structMapService);
       if (editor && editor.document) {
         const config = vscode.workspace.getConfiguration('structMap', editor.document.uri);
         if (!config.get<boolean>('autoRefresh', true)) {

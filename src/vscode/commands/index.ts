@@ -5,6 +5,27 @@ import { StructMapTreeProvider } from '../providers/StructMapTreeProvider';
 import { ViewStateManager } from '../state/ViewState';
 
 /**
+ * Updates the VS Code context key indicating whether the active document supports type toggle.
+ *
+ * @param editor Currently active text editor, or undefined.
+ * @param structMapService Service for parsing and format inspection.
+ */
+export function updateTypesSupportedContext(
+  editor: vscode.TextEditor | undefined,
+  structMapService: StructMapService
+): Thenable<unknown> {
+  const isSupported =
+    editor && editor.document
+      ? structMapService.supportsTypes(editor.document.fileName)
+      : false;
+  return vscode.commands.executeCommand(
+    'setContext',
+    'structmap-solo.typesSupported',
+    isSupported
+  );
+}
+
+/**
  * Registers all StructMap commands with VSCode.
  *
  * @param context Extension context.
@@ -54,6 +75,14 @@ export function registerCommands(
     }),
 
     vscode.commands.registerCommand('structmap-solo.toggleTypes', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (
+        !editor ||
+        !editor.document ||
+        !structMapService.supportsTypes(editor.document.fileName)
+      ) {
+        return;
+      }
       const currentState = viewStateManager.getState();
       await viewStateManager.setShowTypes(!currentState.showTypes);
       treeDataProvider.refresh();
@@ -73,6 +102,7 @@ export function registerCommands(
     }),
 
     vscode.commands.registerCommand('structmap-solo.refresh', () => {
+      updateTypesSupportedContext(vscode.window.activeTextEditor, structMapService);
       treeDataProvider.refresh();
     }),
 

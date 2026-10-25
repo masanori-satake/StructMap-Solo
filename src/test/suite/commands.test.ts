@@ -5,6 +5,7 @@ import {
   NodeNavigator,
   registerCommands,
   StructMapTreeProvider,
+  updateTypesSupportedContext,
   ViewStateManager,
 } from '../../vscode';
 
@@ -40,8 +41,10 @@ suite('Commands & ViewState Integration Test Suite', () => {
   let structMapService: StructMapService;
   let nodeNavigator: NodeNavigator;
   let treeDataProvider: StructMapTreeProvider;
+  let subscriptions: vscode.Disposable[];
 
   setup(() => {
+    subscriptions = [];
     memento = new MockMemento();
     viewStateManager = new ViewStateManager(memento);
     structMapService = new StructMapService();
@@ -51,6 +54,11 @@ suite('Commands & ViewState Integration Test Suite', () => {
       () => undefined,
       viewStateManager
     );
+  });
+
+  teardown(() => {
+    subscriptions.forEach((d) => d.dispose());
+    subscriptions = [];
   });
 
   test('AC-5 & AC-6 & AC-7: TreeProvider reflects ViewState options', () => {
@@ -86,7 +94,6 @@ suite('Commands & ViewState Integration Test Suite', () => {
   });
 
   test('Command registration registers commands in subscriptions', () => {
-    const subscriptions: vscode.Disposable[] = [];
     const context = { subscriptions } as unknown as vscode.ExtensionContext;
 
     registerCommands(
@@ -98,5 +105,121 @@ suite('Commands & ViewState Integration Test Suite', () => {
     );
 
     assert.strictEqual(subscriptions.length, 6);
+  });
+
+  test('updateTypesSupportedContext sets structmap-solo.typesSupported context', async () => {
+    let contextKey = '';
+    let contextValue: unknown = undefined;
+
+    const originalExecuteCommand = vscode.commands.executeCommand;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (vscode.commands as any).executeCommand = async (command: string, ...args: any[]) => {
+      if (command === 'setContext') {
+        contextKey = args[0];
+        contextValue = args[1];
+      }
+      return originalExecuteCommand.call(vscode.commands, command, ...args);
+    };
+
+    try {
+      // JSON editor -> typesSupported = true
+      const jsonEditor = {
+        document: { fileName: 'data.json' } as vscode.TextDocument,
+      } as vscode.TextEditor;
+      await updateTypesSupportedContext(jsonEditor, structMapService);
+      assert.strictEqual(contextKey, 'structmap-solo.typesSupported');
+      assert.strictEqual(contextValue, true);
+
+      // YAML editor -> typesSupported = true
+      const yamlEditor = {
+        document: { fileName: 'config.yaml' } as vscode.TextDocument,
+      } as vscode.TextEditor;
+      await updateTypesSupportedContext(yamlEditor, structMapService);
+      assert.strictEqual(contextKey, 'structmap-solo.typesSupported');
+      assert.strictEqual(contextValue, true);
+
+      // Markdown editor -> typesSupported = false
+      const mdEditor = {
+        document: { fileName: 'README.md' } as vscode.TextDocument,
+      } as vscode.TextEditor;
+      await updateTypesSupportedContext(mdEditor, structMapService);
+      assert.strictEqual(contextKey, 'structmap-solo.typesSupported');
+      assert.strictEqual(contextValue, false);
+
+      // undefined editor -> typesSupported = false
+      await updateTypesSupportedContext(undefined, structMapService);
+      assert.strictEqual(contextKey, 'structmap-solo.typesSupported');
+      assert.strictEqual(contextValue, false);
+    } finally {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (vscode.commands as any).executeCommand = originalExecuteCommand;
+    }
+  });
+
+  test('toggleTypes command ignores non-types-supported active editor', async () => {
+    let toggleHandler: (() => Promise<void>) | undefined;
+
+    const originalRegister = vscode.commands.registerCommand;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (vscode.commands as any).registerCommand = (command: string, callback: (...args: any[]) => any) => {
+      if (command === 'structmap-solo.toggleTypes') {
+        toggleHandler = callback;
+      }
+      return { dispose: () => {} };
+    };
+
+    try {
+      const context = { subscriptions: [] } as unknown as vscode.ExtensionContext;
+      registerCommands(
+        context,
+        treeDataProvider,
+        viewStateManager,
+        structMapService,
+        nodeNavigator
+      );
+
+      assert.ok(toggleHandler, 'toggleTypes command should be registered');
+
+      // State is initially showTypes = true
+      assert.strictEqual(viewStateManager.getState().showTypes, true);
+
+      // If activeTextEditor is undefined, toggleTypes does not change state
+      await toggleHandler();
+      assert.strictEqual(viewStateManager.getState().showTypes, true);
+
+      // Mock activeTextEditor with Markdown document
+      Object.defineProperty(vscode.window, 'activeTextEditor', {
+        value: {
+          document: { fileName: 'sample.md' } as vscode.TextDocument,
+        } as vscode.TextEditor,
+        configurable: true,
+      });
+
+      try {
+        await toggleHandler();
+        // showTypes remains true (not toggled) because Markdown does not support types
+        assert.strictEqual(viewStateManager.getState().showTypes, true);
+
+        // Mock activeTextEditor with JSON document
+        Object.defineProperty(vscode.window, 'activeTextEditor', {
+          value: {
+            document: { fileName: 'data.json' } as vscode.TextDocument,
+          } as vscode.TextEditor,
+          configurable: true,
+        });
+
+        await toggleHandler();
+        // showTypes toggles to false for JSON
+        assert.strictEqual(viewStateManager.getState().showTypes, false);
+      } finally {
+        Object.defineProperty(vscode.window, 'activeTextEditor', {
+          value: undefined,
+          configurable: true,
+        });
+      }
+    } finally {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (vscode.commands as any).registerCommand = originalRegister;
+    }
   });
 });

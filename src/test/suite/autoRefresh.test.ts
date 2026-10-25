@@ -44,6 +44,7 @@ suite('Extension automatic refresh', () => {
             ViewStateManager: class { getState() { return { showTypes: true, showRoot: true, treeStyle: 'unicode' }; } },
             NodeNavigator: class {},
             registerCommands: () => {},
+            updateTypesSupportedContext: () => Promise.resolve(),
           };
           default: throw new Error(`Unexpected import: ${id}`);
         }
