@@ -20,7 +20,7 @@ export function activate(context: vscode.ExtensionContext): void {
     viewStateManager
   );
 
-  
+
 
 const treeView = vscode.window.createTreeView('structmap-solo.view', {
     treeDataProvider,
