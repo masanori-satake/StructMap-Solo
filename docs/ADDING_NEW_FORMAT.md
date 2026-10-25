@@ -129,7 +129,9 @@ export class StructMapService {
   }
 
   public supportsTypes(fileName?: string): boolean {
-    // データ型表示 (Show Types) をサポートする場合は true に含める
+    if (!fileName) {
+      return false;
+    }
     const ext = this.getFileExtension(fileName);
     return ext === '.json' || ext === '.yml' || ext === '.yaml' || ext === '.xml';
   }
