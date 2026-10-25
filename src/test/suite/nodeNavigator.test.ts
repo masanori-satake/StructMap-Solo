@@ -69,20 +69,22 @@ suite('NodeNavigator Test Suite', () => {
     }
   });
 
-  test('AC-3: YAML node location finding', () => {
-    const yamlContent = 'server:\n  port: 8080\nusers:\n  - name: Alice';
+  test('AC-3: YAML node location finding with nested arrays and range nodes', () => {
+    const yamlContent = 'repos:\n  - repo: url1\n    hooks:\n      - id: h1\n      - id: h2\n  - repo: url2\n    hooks:\n      - id: h3';
     const doc = createMockDocument('config.yaml', yamlContent, 'yaml');
-    const parseResult = service.build('config.yaml', yamlContent);
+    const parseResult = service.build('config.yaml', yamlContent, 5, 1); // maxArrayItems = 1
     assert.strictEqual(parseResult.type, 'success');
 
     if (parseResult.type === 'success') {
       const root = parseResult.tree.root;
-      const serverNode = root.children.find((c) => c.name === 'server')!;
-      const portNode = serverNode.children[0];
+      const reposNode = root.children.find((c) => c.name === 'repos')!;
+      // Second repo is under range node '[1 .. 1]'
+      const rangeNode = reposNode.children[1]; // '[1 .. 1]'
+      assert.strictEqual(rangeNode.name, '[1 .. 1]');
 
-      const posPort = navigator.findNodePosition(doc, portNode);
-      assert.ok(posPort);
-      assert.strictEqual(posPort.line, 1);
+      const posRange = navigator.findNodePosition(doc, rangeNode);
+      assert.ok(posRange);
+      assert.strictEqual(posRange.line, 5); // '- repo: url2'
     }
   });
 

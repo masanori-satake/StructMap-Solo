@@ -98,7 +98,30 @@ export class NodeNavigator {
       if (node.name === 'Frontmatter (YAML)') {
         return new vscode.Position(0, 0);
       }
-      // Search within frontmatter block
+      let frontmatterEndLine = -1;
+      for (let i = 1; i < lines.length; i++) {
+        if (/^(---|Calculated:|\.\.\.)[ \t]*$/.test(lines[i]) || /^(---|\.\.\.)[ \t]*$/.test(lines[i])) {
+          if (/^(---|\.\.\.)[ \t]*$/.test(lines[i])) {
+            frontmatterEndLine = i;
+            break;
+          }
+        }
+      }
+
+      if (frontmatterEndLine > 1) {
+        const fmText = lines.slice(1, frontmatterEndLine).join('\n');
+        const fmIndex = node.path.indexOf('Frontmatter (YAML)');
+        const fmNode: StructNode = {
+          ...node,
+          path: [node.path[0], ...node.path.slice(fmIndex + 1)]
+        };
+        const fmPos = this.findYamlPosition(fmText, fmNode);
+        if (fmPos) {
+          return new vscode.Position(fmPos.line + 1, fmPos.character);
+        }
+      }
+
+      // Fallback search within frontmatter block for key regex
       for (let i = 1; i < lines.length; i++) {
         if (/^(---|Calculated:|\.\.\.)[ \t]*$/.test(lines[i]) || /^(---|\.\.\.)[ \t]*$/.test(lines[i])) {
           break; // end of frontmatter
@@ -322,6 +345,7 @@ export class NodeNavigator {
         const targetIdx = parseInt((arrayMatch || rangeMatch)![1], 10);
         let foundIdx = -1;
         let foundLine = -1;
+        let targetIndent = -1;
 
         for (let i = currentLine; i < lines.length; i++) {
           const line = lines[i];
@@ -337,10 +361,15 @@ export class NodeNavigator {
           if (arrayItemMatch) {
             const itemIndent = arrayItemMatch[1].length;
             if (minIndent === -1 || itemIndent >= minIndent) {
-              foundIdx++;
-              if (foundIdx === targetIdx) {
-                foundLine = i;
-                break;
+              if (targetIndent === -1) {
+                targetIndent = itemIndent;
+              }
+              if (itemIndent === targetIndent) {
+                foundIdx++;
+                if (foundIdx === targetIdx) {
+                  foundLine = i;
+                  break;
+                }
               }
             }
           }

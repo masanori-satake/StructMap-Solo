@@ -53,13 +53,16 @@ function createRangeNode(
       );
     }
   } else {
-    const step = Math.max(
-      1,
-      Math.pow(
-        maxArrayItems,
-        Math.max(1, Math.ceil(Math.log(count) / Math.log(maxArrayItems)) - 1)
-      )
-    );
+    const step =
+      maxArrayItems <= 1
+        ? 1
+        : Math.max(
+            1,
+            Math.pow(
+              maxArrayItems,
+              Math.max(1, Math.ceil(Math.log(count) / Math.log(maxArrayItems)) - 1)
+            )
+          );
 
     for (let s = start; s <= end; s += step) {
       const e = Math.min(s + step - 1, end);
