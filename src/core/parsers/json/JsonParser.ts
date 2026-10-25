@@ -56,12 +56,13 @@ export class JsonParser {
    *
    * @param content Raw JSON string.
    * @param fileName File name to be set as the root node name.
+   * @param maxArrayItems Maximum number of array items to display directly before chunking.
    * @returns Generated ParseResult (ParseSuccess containing StructTree or ParseError).
    */
-  public parse(content: string, fileName: string = 'root'): ParseResult {
+  public parse(content: string, fileName: string = 'root', maxArrayItems: number = 50): ParseResult {
     try {
       const parsed: unknown = JSON.parse(content);
-      const tree = convertObjectToStructTree(parsed, fileName, 'json');
+      const tree = convertObjectToStructTree(parsed, fileName, 'json', maxArrayItems);
       return createParseSuccess(tree);
     } catch (err) {
       const location = extractJsonErrorLocation(err as Error, content);

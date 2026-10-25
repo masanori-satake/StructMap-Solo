@@ -13,6 +13,9 @@ export interface RenderOptions {
  * Formats a single node's display label based on node type, value type, and render options.
  */
 function formatNodeLabel(node: StructNode, options: RenderOptions): string {
+  if (node.isRange) {
+    return node.name;
+  }
   if (options.showTypes) {
     if (node.nodeType === 'array' || node.nodeType === 'object') {
       return `${node.name} : ${node.nodeType}`;

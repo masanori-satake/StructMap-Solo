@@ -47,6 +47,9 @@ function getErrorDisplayLabel(error: ParseError): string {
  * Formats a node's display label based on ViewState.
  */
 function formatNodeLabel(node: StructNode, viewState: ViewState): string {
+  if (node.isRange) {
+    return node.name;
+  }
   if (viewState.showTypes) {
     if (node.nodeType === 'array' || node.nodeType === 'object') {
       return `${node.name} : ${node.nodeType}`;
@@ -57,7 +60,7 @@ function formatNodeLabel(node: StructNode, viewState: ViewState): string {
     return node.name;
   } else {
     if (node.nodeType === 'array') {
-      return `${node.name} []`;
+      return node.children.length === 0 ? `${node.name} []` : node.name;
     }
     if (node.nodeType === 'object') {
       return node.children.length === 0 ? `${node.name} {}` : node.name;
@@ -190,8 +193,9 @@ export class StructMapTreeProvider implements vscode.TreeDataProvider<StructTree
         ? vscode.workspace.getConfiguration('structMap', activeEditor.document.uri)
         : undefined;
       const maxFileSizeMB = config ? config.get<number>('maxFileSizeMB', 5) : 5;
+      const maxArrayItems = config ? config.get<number>('maxArrayItems', 50) : 50;
 
-      const parseResult = this.structMapService.build(fileName, content, maxFileSizeMB);
+      const parseResult = this.structMapService.build(fileName, content, maxFileSizeMB, maxArrayItems);
 
       if (isParseError(parseResult)) {
         const displayLabel = getErrorDisplayLabel(parseResult);

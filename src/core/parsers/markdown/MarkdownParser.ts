@@ -86,9 +86,10 @@ export class MarkdownParser {
    *
    * @param content Markdown text content.
    * @param fileName File name to be set as the root node name.
+   * @param maxArrayItems Maximum number of array items to display directly before chunking.
    * @returns Generated ParseResult (ParseSuccess containing StructTree or ParseError).
    */
-  public parse(content: string, fileName: string = 'root'): ParseResult {
+  public parse(content: string, fileName: string = 'root', maxArrayItems: number = 50): ParseResult {
     try {
       let idCounter = 0;
 
@@ -122,7 +123,8 @@ export class MarkdownParser {
           frontmatterChildren = this.frontmatterParser.parse(
             frontmatterResult.yamlContent,
             frontmatterPath,
-            () => `node-${idCounter++}`
+            () => `node-${idCounter++}`,
+            maxArrayItems
           );
         } catch (fmErr) {
           const location = extractFrontmatterErrorLocation(fmErr);

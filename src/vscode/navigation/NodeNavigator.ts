@@ -172,9 +172,17 @@ export class NodeNavigator {
     text: string,
     node: StructNode
   ): vscode.Position | undefined {
-    const targetKeys = node.path.slice(1);
-    if (targetKeys.length === 0) {
+    const rawKeys = node.path.slice(1);
+    if (rawKeys.length === 0) {
       return new vscode.Position(0, 0);
+    }
+
+    const targetKeys: string[] = [];
+    for (let i = 0; i < rawKeys.length; i++) {
+      const isRange = /^\[\d+\s*\.\.\s*\d+\]$/.test(rawKeys[i]);
+      if (!isRange || i === rawKeys.length - 1) {
+        targetKeys.push(rawKeys[i]);
+      }
     }
 
     let cursor = 0;
@@ -182,9 +190,12 @@ export class NodeNavigator {
     for (let k = 0; k < targetKeys.length; k++) {
       const key = targetKeys[k];
 
-      if (/^\[\d+\]$/.test(key)) {
-        // Array index like '[0]'
-        const idx = parseInt(key.slice(1, -1), 10);
+      const arrayMatch = key.match(/^\[(\d+)\]$/);
+      const rangeMatch = key.match(/^\[(\d+)\s*\.\.\s*\d+\]$/);
+
+      if (arrayMatch || rangeMatch) {
+        // Array index like '[0]' or range like '[1 .. 999]'
+        const idx = parseInt((arrayMatch || rangeMatch)![1], 10);
         const bracketPos = text.indexOf('[', cursor);
         if (bracketPos === -1) {
           return undefined;
@@ -283,9 +294,17 @@ export class NodeNavigator {
     text: string,
     node: StructNode
   ): vscode.Position | undefined {
-    const targetKeys = node.path.slice(1);
-    if (targetKeys.length === 0) {
+    const rawKeys = node.path.slice(1);
+    if (rawKeys.length === 0) {
       return new vscode.Position(0, 0);
+    }
+
+    const targetKeys: string[] = [];
+    for (let i = 0; i < rawKeys.length; i++) {
+      const isRange = /^\[\d+\s*\.\.\s*\d+\]$/.test(rawKeys[i]);
+      if (!isRange || i === rawKeys.length - 1) {
+        targetKeys.push(rawKeys[i]);
+      }
     }
 
     const lines = text.split(/\r?\n/);
@@ -295,9 +314,12 @@ export class NodeNavigator {
     for (let k = 0; k < targetKeys.length; k++) {
       const key = targetKeys[k];
 
-      if (/^\[\d+\]$/.test(key)) {
-        // Array index like '[0]'
-        const targetIdx = parseInt(key.slice(1, -1), 10);
+      const arrayMatch = key.match(/^\[(\d+)\]$/);
+      const rangeMatch = key.match(/^\[(\d+)\s*\.\.\s*\d+\]$/);
+
+      if (arrayMatch || rangeMatch) {
+        // Array index like '[0]' or range like '[1 .. 999]'
+        const targetIdx = parseInt((arrayMatch || rangeMatch)![1], 10);
         let foundIdx = -1;
         let foundLine = -1;
 

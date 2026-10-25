@@ -29,12 +29,13 @@ export class YamlParser {
    *
    * @param content Raw YAML string.
    * @param fileName File name to be set as the root node name.
+   * @param maxArrayItems Maximum number of array items to display directly before chunking.
    * @returns Generated ParseResult (ParseSuccess containing StructTree or ParseError).
    */
-  public parse(content: string, fileName: string = 'root'): ParseResult {
+  public parse(content: string, fileName: string = 'root', maxArrayItems: number = 50): ParseResult {
     try {
       const parsed: unknown = yaml.load(content);
-      const tree = convertObjectToStructTree(parsed, fileName, 'yaml');
+      const tree = convertObjectToStructTree(parsed, fileName, 'yaml', maxArrayItems);
       return createParseSuccess(tree);
     } catch (err) {
       const location = extractYamlErrorLocation(err);

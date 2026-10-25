@@ -107,7 +107,7 @@ suite('JsonParser Test Suite', () => {
     assert.strictEqual(firstElem.children[1].value, 'Alice');
   });
 
-  test('AC-4 First戦略: Converts only the first element of an array', () => {
+  test('AC-4 Array element limit: Converts array elements up to maxArrayItems and creates range node', () => {
     const json = JSON.stringify({
       users: [
         {
@@ -123,14 +123,25 @@ suite('JsonParser Test Suite', () => {
     const tree = getTree(parser.parse(json, 'users.json'));
     const usersNode = tree.root.children[0];
 
-    assert.strictEqual(usersNode.children.length, 1);
+    assert.strictEqual(usersNode.children.length, 2);
 
     const firstElem = usersNode.children[0];
     assert.strictEqual(firstElem.name, '[0]');
-    assert.strictEqual(firstElem.children.length, 1);
-
     assert.strictEqual(firstElem.children[0].name, 'id');
     assert.strictEqual(firstElem.children[0].value, 1);
+
+    const secondElem = usersNode.children[1];
+    assert.strictEqual(secondElem.name, '[1]');
+    assert.strictEqual(secondElem.children[0].name, 'id');
+    assert.strictEqual(secondElem.children[0].value, 2);
+
+    // Test with maxArrayItems = 1
+    const treeLimited = getTree(parser.parse(json, 'users.json', 1));
+    const usersNodeLimited = treeLimited.root.children[0];
+    assert.strictEqual(usersNodeLimited.children.length, 2);
+    assert.strictEqual(usersNodeLimited.children[0].name, '[0]');
+    assert.strictEqual(usersNodeLimited.children[1].name, '[1 .. 1]');
+    assert.strictEqual(usersNodeLimited.children[1].isRange, true);
   });
 
   test('AC-5 空配列対応: Handles empty arrays without throwing exceptions', () => {
@@ -212,9 +223,13 @@ suite('JsonParser Test Suite', () => {
 
     // Top level array of primitives
     const arrTree = getTree(parser.parse('[10, 20, 30]', 'arr.json'));
-    assert.strictEqual(arrTree.root.children.length, 1);
+    assert.strictEqual(arrTree.root.children.length, 3);
     assert.strictEqual(arrTree.root.children[0].name, '[0]');
     assert.strictEqual(arrTree.root.children[0].value, 10);
+    assert.strictEqual(arrTree.root.children[1].name, '[1]');
+    assert.strictEqual(arrTree.root.children[1].value, 20);
+    assert.strictEqual(arrTree.root.children[2].name, '[2]');
+    assert.strictEqual(arrTree.root.children[2].value, 30);
 
     // Top level empty object
     const emptyObjTree = getTree(parser.parse('{}', 'empty.json'));

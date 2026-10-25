@@ -15,9 +15,15 @@ export class StructMapService {
    * @param fileName Name or path of the file to parse.
    * @param content Raw text content of the file.
    * @param maxFileSizeMB Maximum allowed file size in megabytes (default 5).
+   * @param maxArrayItems Maximum number of array items to display directly before chunking (default 50).
    * @returns ParseResult containing StructTree on success, or ParseError on failure.
    */
-  public build(fileName: string, content: string, maxFileSizeMB: number = 5): ParseResult {
+  public build(
+    fileName: string,
+    content: string,
+    maxFileSizeMB: number = 5,
+    maxArrayItems: number = 50
+  ): ParseResult {
     const ext = this.getFileExtension(fileName);
 
     if (!ext || !this.isSupportedExtension(ext)) {
@@ -50,12 +56,12 @@ export class StructMapService {
     switch (ext) {
       case '.md':
       case '.markdown':
-        return this.markdownParser.parse(content, fileName);
+        return this.markdownParser.parse(content, fileName, maxArrayItems);
       case '.json':
-        return this.jsonParser.parse(content, fileName);
+        return this.jsonParser.parse(content, fileName, maxArrayItems);
       case '.yml':
       case '.yaml':
-        return this.yamlParser.parse(content, fileName);
+        return this.yamlParser.parse(content, fileName, maxArrayItems);
       default:
         return createParseError(
           ParseErrorCode.UNSUPPORTED_FORMAT,

@@ -1,6 +1,6 @@
 # StructMap-Solo
 
-[![Version](https://img.shields.io/badge/version-v1.0.2-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-v1.1.0-blue.svg)](package.json)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/masanori-satake/StructMap-Solo)](https://github.com/masanori-satake/StructMap-Solo/releases)
 
 <p align="center">
@@ -87,50 +87,6 @@ StructMap-Solo はプライバシーとデータセキュリティを第一に�
 - **No AI features.**
 
 入力テキストや編集中のドキュメントがネットワーク経由で送信されることは絶対にありません。
-
----
-
-## 開発手順 (Development)
-
-### 前提条件
-
-- Node.js (v18 以上推奨)
-- npm (v9 以上推奨)
-- Visual Studio Code
-
-### ビルド & テスト手順
-
-1. **リポジトリのクローンと依存関係のインストール**
-   ```bash
-   git clone https://github.com/masanori-satake/StructMap-Solo.git
-   cd StructMap-Solo
-   npm ci
-   ```
-
-2. **コンパイル**
-   ```bash
-   npm run compile
-   ```
-
-3. **コードスタイル検証 (ESLint)**
-   ```bash
-   npm run lint
-   ```
-
-4. **テスト実行**
-   ```bash
-   npm run test
-   ```
-
-5. **VSIX パッケージ生成**
-   ```bash
-   npm run package
-   ```
-
-### Extension Host でのデバッグ実行
-
-1. VSCode で本プロジェクトを開きます。
-2. `F5` キーを押して [Extension Development Host] を起動します。
 
 ---
 
