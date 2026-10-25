@@ -187,15 +187,6 @@ tags: *tags
     assert.notStrictEqual(copy.children[0].id, tags.id);
   });
 
-  test('Preserves the first-element strategy when later elements contain circular aliases', () => {
-    const rootArray = getTree(parser.parse('&items [42, *items]')).root.children;
-    const nestedArray = getTree(parser.parse('items: &items [42, *items]')).root.children[0].children;
-
-    for (const children of [rootArray, nestedArray]) {
-      assert.strictEqual(children.length, 1);
-      assert.strictEqual(children[0].value, 42);
-    }
-  });
 
   test('AC-7 Rootノード生成: Sets root.name to file name', () => {
     const yamlContent = 'key: value';
@@ -223,7 +214,7 @@ tags: *tags
     assert.strictEqual(fileContent.includes('require("vscode")'), false);
   });
 
-  test('Array handling with first strategy and empty/scalar cases', () => {
+  test('Array handling with all elements and maxArrayItems range nodes', () => {
     const yamlContent = `
 users:
   - name: Alice
@@ -235,13 +226,27 @@ users:
 
     assert.strictEqual(usersNode.name, 'users');
     assert.strictEqual(usersNode.nodeType, 'array');
-    assert.strictEqual(usersNode.children.length, 1);
+    assert.strictEqual(usersNode.children.length, 2);
 
     const firstItem = usersNode.children[0];
     assert.strictEqual(firstItem.name, '[0]');
     assert.strictEqual(firstItem.nodeType, 'object');
     assert.strictEqual(firstItem.children[0].name, 'name');
     assert.strictEqual(firstItem.children[0].value, 'Alice');
+
+    const secondItem = usersNode.children[1];
+    assert.strictEqual(secondItem.name, '[1]');
+    assert.strictEqual(secondItem.nodeType, 'object');
+    assert.strictEqual(secondItem.children[0].name, 'name');
+    assert.strictEqual(secondItem.children[0].value, 'Bob');
+
+    // Test with maxArrayItems = 1
+    const treeLimited = getTree(parser.parse(yamlContent, 'users.yaml', 1));
+    const usersNodeLimited = treeLimited.root.children[0];
+    assert.strictEqual(usersNodeLimited.children.length, 2);
+    assert.strictEqual(usersNodeLimited.children[0].name, '[0]');
+    assert.strictEqual(usersNodeLimited.children[1].name, '[1 .. 1]');
+    assert.strictEqual(usersNodeLimited.children[1].isRange, true);
   });
 
   test('AC-2 & AC-4 & AC-5 & AC-6: Invalid YAML syntax returns ParseError with line/column', () => {

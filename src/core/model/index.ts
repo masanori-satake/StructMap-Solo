@@ -43,6 +43,8 @@ export interface StructNode {
   value?: string | number | boolean | null;
   /** Array of child structural nodes. */
   children: StructNode[];
+  /** Optional flag indicating if the node is an array index range node (e.g. [1 .. 999]). */
+  isRange?: boolean;
 }
 
 /**

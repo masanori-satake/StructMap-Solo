@@ -98,7 +98,30 @@ export class NodeNavigator {
       if (node.name === 'Frontmatter (YAML)') {
         return new vscode.Position(0, 0);
       }
-      // Search within frontmatter block
+      let frontmatterEndLine = -1;
+      for (let i = 1; i < lines.length; i++) {
+        if (/^(---|Calculated:|\.\.\.)[ \t]*$/.test(lines[i]) || /^(---|\.\.\.)[ \t]*$/.test(lines[i])) {
+          if (/^(---|\.\.\.)[ \t]*$/.test(lines[i])) {
+            frontmatterEndLine = i;
+            break;
+          }
+        }
+      }
+
+      if (frontmatterEndLine > 1) {
+        const fmText = lines.slice(1, frontmatterEndLine).join('\n');
+        const fmIndex = node.path.indexOf('Frontmatter (YAML)');
+        const fmNode: StructNode = {
+          ...node,
+          path: [node.path[0], ...node.path.slice(fmIndex + 1)]
+        };
+        const fmPos = this.findYamlPosition(fmText, fmNode);
+        if (fmPos) {
+          return new vscode.Position(fmPos.line + 1, fmPos.character);
+        }
+      }
+
+      // Fallback search within frontmatter block for key regex
       for (let i = 1; i < lines.length; i++) {
         if (/^(---|Calculated:|\.\.\.)[ \t]*$/.test(lines[i]) || /^(---|\.\.\.)[ \t]*$/.test(lines[i])) {
           break; // end of frontmatter
@@ -172,9 +195,17 @@ export class NodeNavigator {
     text: string,
     node: StructNode
   ): vscode.Position | undefined {
-    const targetKeys = node.path.slice(1);
-    if (targetKeys.length === 0) {
+    const rawKeys = node.path.slice(1);
+    if (rawKeys.length === 0) {
       return new vscode.Position(0, 0);
+    }
+
+    const targetKeys: string[] = [];
+    for (let i = 0; i < rawKeys.length; i++) {
+      const isRange = /^\[\d+\s*\.\.\s*\d+\]$/.test(rawKeys[i]);
+      if (!isRange || i === rawKeys.length - 1) {
+        targetKeys.push(rawKeys[i]);
+      }
     }
 
     let cursor = 0;
@@ -182,9 +213,12 @@ export class NodeNavigator {
     for (let k = 0; k < targetKeys.length; k++) {
       const key = targetKeys[k];
 
-      if (/^\[\d+\]$/.test(key)) {
-        // Array index like '[0]'
-        const idx = parseInt(key.slice(1, -1), 10);
+      const arrayMatch = key.match(/^\[(\d+)\]$/);
+      const rangeMatch = key.match(/^\[(\d+)\s*\.\.\s*\d+\]$/);
+
+      if (arrayMatch || rangeMatch) {
+        // Array index like '[0]' or range like '[1 .. 999]'
+        const idx = parseInt((arrayMatch || rangeMatch)![1], 10);
         const bracketPos = text.indexOf('[', cursor);
         if (bracketPos === -1) {
           return undefined;
@@ -283,9 +317,17 @@ export class NodeNavigator {
     text: string,
     node: StructNode
   ): vscode.Position | undefined {
-    const targetKeys = node.path.slice(1);
-    if (targetKeys.length === 0) {
+    const rawKeys = node.path.slice(1);
+    if (rawKeys.length === 0) {
       return new vscode.Position(0, 0);
+    }
+
+    const targetKeys: string[] = [];
+    for (let i = 0; i < rawKeys.length; i++) {
+      const isRange = /^\[\d+\s*\.\.\s*\d+\]$/.test(rawKeys[i]);
+      if (!isRange || i === rawKeys.length - 1) {
+        targetKeys.push(rawKeys[i]);
+      }
     }
 
     const lines = text.split(/\r?\n/);
@@ -295,11 +337,15 @@ export class NodeNavigator {
     for (let k = 0; k < targetKeys.length; k++) {
       const key = targetKeys[k];
 
-      if (/^\[\d+\]$/.test(key)) {
-        // Array index like '[0]'
-        const targetIdx = parseInt(key.slice(1, -1), 10);
+      const arrayMatch = key.match(/^\[(\d+)\]$/);
+      const rangeMatch = key.match(/^\[(\d+)\s*\.\.\s*\d+\]$/);
+
+      if (arrayMatch || rangeMatch) {
+        // Array index like '[0]' or range like '[1 .. 999]'
+        const targetIdx = parseInt((arrayMatch || rangeMatch)![1], 10);
         let foundIdx = -1;
         let foundLine = -1;
+        let targetIndent = -1;
 
         for (let i = currentLine; i < lines.length; i++) {
           const line = lines[i];
@@ -314,13 +360,21 @@ export class NodeNavigator {
           const arrayItemMatch = line.match(/^(\s*)-\s+/);
           if (arrayItemMatch) {
             const itemIndent = arrayItemMatch[1].length;
-            if (minIndent === -1 || itemIndent >= minIndent) {
-              foundIdx++;
-              if (foundIdx === targetIdx) {
-                foundLine = i;
-                break;
+            if (minIndent === -1 || itemIndent >= minIndent - 1) {
+              if (targetIndent === -1) {
+                targetIndent = itemIndent;
+              }
+              if (itemIndent === targetIndent) {
+                foundIdx++;
+                if (foundIdx === targetIdx) {
+                  foundLine = i;
+                  break;
+                }
               }
             }
+          } else if (i > currentLine && targetIndent !== -1 && indent <= targetIndent) {
+            // Sibling property key at parent/same indent level terminates array search
+            break;
           }
         }
 

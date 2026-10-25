@@ -83,10 +83,11 @@ suite('FrontmatterParser Test Suite', () => {
       Array.from({ length: 10_000 }, () => '- value').join('\n'),
       Array.from({ length: 10_000 }, (_, index) => `key${index}: value`).join('\n')
     ]) {
-      assert.strictEqual(parse(content).length, 10_000);
+      let id = 0;
+      assert.strictEqual(parser.parse(content, parentPath, () => `value-${id++}`, 20_000).length, 10_000);
       const extra = content.startsWith('-') ? '\n- extra' : '\nextra: value';
       let createdCount = 0;
-      assert.throws(() => parser.parse(content + extra, parentPath, () => `${createdCount++}`),
+      assert.throws(() => parser.parse(content + extra, parentPath, () => `${createdCount++}`, 20_000),
         /YAML frontmatter exceeds the maximum of 10000 nodes/);
       assert.strictEqual(createdCount, 10_000);
     }
@@ -96,8 +97,9 @@ suite('FrontmatterParser Test Suite', () => {
 
   test('Counts nested containers and repeated alias expansion toward the node limit', () => {
     const items = Array.from({ length: 9_999 }, () => 'value').join(', ');
-    assert.strictEqual(parse(`items: [${items}]`)[0].children.length, 9_999);
-    assert.throws(() => parse(`items: [${items}, extra]`), /maximum of 10000 nodes/);
+    let id = 0;
+    assert.strictEqual(parser.parse(`items: [${items}]`, parentPath, () => `value-${id++}`, 20_000)[0].children.length, 9_999);
+    assert.throws(() => parser.parse(`items: [${items}, extra]`, parentPath, () => `value-${id++}`, 20_000), /maximum of 10000 nodes/);
 
     const lines = ['a0: &a0 [value, value]'];
     for (let level = 1; level <= 12; level++) {
