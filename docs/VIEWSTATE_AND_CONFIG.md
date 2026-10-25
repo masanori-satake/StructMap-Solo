@@ -22,7 +22,7 @@
 ```typescript
 export interface ViewState {
   showTypes: boolean;              // ノードデータ型表示トグル (既定: true)
-  showRoot: boolean;               // ルートノード表示トグル (既定: false)
+  showRoot: boolean;               // ルートノード表示トグル (既定: true)
   treeStyle: 'unicode' | 'ascii';  // 罫線描画スタイル (既定: 'unicode')
 }
 ```
@@ -30,12 +30,13 @@ export interface ViewState {
 ```mermaid
 classDiagram
     class ViewStateManager {
-        -vscode.ExtensionContext context
+        -vscode.Memento memento
         +getState() ViewState
-        +toggleShowTypes() boolean
-        +toggleShowRoot() boolean
-        +toggleTreeStyle() 'unicode' | 'ascii'
-        -saveState(state: ViewState) void
+        +setShowTypes(showTypes: boolean) Promise~ViewState~
+        +setShowRoot(showRoot: boolean) Promise~ViewState~
+        +setTreeStyle(treeStyle: 'unicode' | 'ascii') Promise~ViewState~
+        +updateState(newState: Partial~ViewState~) Promise~ViewState~
+        +resetState() Promise~ViewState~
     }
 
     class ViewState {
@@ -51,7 +52,7 @@ classDiagram
 
 ## 2. VSCode 拡張機能設定 (Configuration)
 
-`package.json` の `contributes.configuration` で公開されているユーザー設定項目一覧です。設定変更は、拡張機能が次に設定を読み込む時点（エディタ切り替え、文書編集、手動更新など）で反映されます。設定変更自体による再パース・再描画は行われません。
+`package.json` の `contributes.configuration` で公開されているユーザー設定項目一覧です。設定変更はリアルタイムにエディタの再パース・挙動に反映されます。
 
 | 設定キー | 型 | 既定値 | 説明 |
 | :--- | :---: | :---: | :--- |
@@ -68,7 +69,7 @@ classDiagram
 
 ```mermaid
 graph LR
-    subgraph TitleBar ["TreeView TitleBar (view/title)"]
+    subgraph TitleBar ["TreeView TitleBar (view/title: view == structmap-solo.view)"]
         BtnTypes["Toggle Types (structmap-solo.toggleTypes)"]
         BtnStyle["Toggle Tree Style (structmap-solo.toggleTreeStyle)"]
         BtnRoot["Toggle Root (structmap-solo.toggleRoot)"]
@@ -77,17 +78,19 @@ graph LR
     end
 
     subgraph ContextKeys ["VSCode Context Keys"]
-        CKTypes["structmap.typesSupported"]
+        CKTypes["structmap-solo.typesSupported"]
     end
 
-    CKTypes -.->|when: structmap.typesSupported| BtnTypes
+    CKTypes -.->|updateTypesSupportedContext| BtnTypes
 ```
 
 ### コマンドと表示制御の連動
 
-- **`structmap.typesSupported` (Context Key)**:
+- **タイトルバーコマンドの配置・条件**:
+  - タイトルバーに表示されるボタン群は `package.json` の `"when": "view == structmap-solo.view"` 条件により `structmap-solo.view` のタイトルバーに配置されます。
+- **`structmap-solo.typesSupported` (Context Key)**:
   - アクティブエディタが JSON または YAML の場合に `true` がセットされます。
-  - `package.json` の `when: "view == structmap-solo.view && structmap.typesSupported"` 条件により、Markdown 等の型を持たないドキュメントでは「Toggle Types」ボタンが自動的に非表示となります。
+  - `structmap-solo.toggleTypes` コマンドハンドラ内にて、アクティブ文書がデータ型非対応（Markdown 等）の場合はトグル処理を実行しないようガードします。
 - **TreeView View Description**:
   - `treeView.description` に現在のツリースタイル（例: `Style: Unicode` または `Style: ASCII`）がリアルタイム表示されます。
 
@@ -95,7 +98,7 @@ graph LR
 
 ## 4. ViewState と TreeView の連動シーケンス
 
-表示オプションがトグル変更された際、`ViewStateManager` が新しい状態を永続化し、`StructMapTreeProvider.refresh()` を呼び出すことで `StructTreeItem` のラベルフォーマットが再適用されます。
+表示オプションがトグル変更された際、`ViewStateManager` の `set*` メソッドが呼び出されて新しい状態を永続化し、`StructMapTreeProvider.refresh()` を呼び出すことで `StructTreeItem` のラベルフォーマットが再適用されます。
 
 ```mermaid
 sequenceDiagram
@@ -107,9 +110,12 @@ sequenceDiagram
     participant TP as StructMapTreeProvider
     participant TV as TreeView
 
-    U->>Cmd: 「Show Types」ボタンを押下
-    Cmd->>VSM: toggleShowTypes()
+    U->>Cmd: 「Toggle Types」ボタンを押下
+    Cmd->>VSM: getState()
+    VSM-->>Cmd: currentViewState
+    Cmd->>VSM: setShowTypes(!currentViewState.showTypes)
     VSM->>GS: update('structmap.viewState', newState)
+    VSM-->>Cmd: Promise<ViewState>
     Cmd->>TP: refresh()
     TP->>TP: _onDidChangeTreeData.fire()
     TV->>TP: getChildren(element)

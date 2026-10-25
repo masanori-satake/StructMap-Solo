@@ -15,7 +15,7 @@ StructMap-Solo は拡張性を考慮して設計されています。新たな�
   - [Step 5: package.json のアクティベーション設定](#step-5-packagejson-のアクティベーション設定)
   - [Step 6: (任意) NodeNavigator の検索ロジック追加](#step-6-任意-nodenavigator-の検索ロジック追加)
   - [Step 7: 単体テスト (Unit Test) の作成](#step-7-単体テスト-unit-test-の作成)
-- [3. 実装上の注意点・ベストプラクティス](#3-実装上の注意点ベストプラクティス)
+- [3. 実装上の注意点・ベストプラクティス](#3-実装上の注意点・ベストプラクティス)
 
 ---
 
@@ -53,19 +53,18 @@ export type SourceFormat =
 ```
 
 ### Step 2: ParseErrorCode の追加 (必要に応じて)
-`src/core/errors/ParseError.ts` の `ParseErrorCode` (`as const` オブジェクト) に専用のエラーコードを追加します。既存の `PARSE_ERROR` などのコードは保持します。
+`src/core/errors/index.ts` の `ParseErrorCode` enum に専用のエラーコードを追加します。
 
 ```typescript
-export const ParseErrorCode = {
-  FILE_TOO_LARGE: 'FILE_TOO_LARGE',
-  JSON_PARSE_ERROR: 'JSON_PARSE_ERROR',
-  YAML_PARSE_ERROR: 'YAML_PARSE_ERROR',
-  FRONTMATTER_PARSE_ERROR: 'FRONTMATTER_PARSE_ERROR',
-  XML_PARSE_ERROR: 'XML_PARSE_ERROR', // 追加
-  UNSUPPORTED_FORMAT: 'UNSUPPORTED_FORMAT',
-  EMPTY_FILE: 'EMPTY_FILE',
-  PARSE_ERROR: 'PARSE_ERROR',
-} as const;
+export enum ParseErrorCode {
+  FILE_TOO_LARGE = 'FILE_TOO_LARGE',
+  JSON_PARSE_ERROR = 'JSON_PARSE_ERROR',
+  YAML_PARSE_ERROR = 'YAML_PARSE_ERROR',
+  FRONTMATTER_PARSE_ERROR = 'FRONTMATTER_PARSE_ERROR',
+  XML_PARSE_ERROR = 'XML_PARSE_ERROR', // 追加
+  UNSUPPORTED_FORMAT = 'UNSUPPORTED_FORMAT',
+  EMPTY_FILE = 'EMPTY_FILE',
+}
 ```
 
 また、`src/vscode/providers/StructMapTreeProvider.ts` の `getErrorDisplayLabel` に多言語対応 (l10n) ラベルのマッピングを追加します。
@@ -87,7 +86,7 @@ export class XmlParser {
       const parsedObject = parseXmlToJsObject(content);
 
       // 2. 共通コンバーターで StructTree に変換 (配列 chunking 対応)
-      const tree = convertObjectToStructTree(parsedObject, fileName, 'xml', maxArrayItems);
+      const tree = convertObjectToStructTree(parsedObject, 'xml', fileName, maxArrayItems);
       return createParseSuccess(tree);
     } catch (err: any) {
       return createParseError(
@@ -129,9 +128,7 @@ export class StructMapService {
   }
 
   public supportsTypes(fileName?: string): boolean {
-    if (!fileName) {
-      return false;
-    }
+    // データ型表示 (Show Types) をサポートする場合は true に含める
     const ext = this.getFileExtension(fileName);
     return ext === '.json' || ext === '.yml' || ext === '.yaml' || ext === '.xml';
   }

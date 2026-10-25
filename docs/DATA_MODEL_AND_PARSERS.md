@@ -32,7 +32,7 @@ classDiagram
         +string[] path
         +NodeType nodeType
         +ValueType valueType
-        +string | number | boolean | null value
+        +any value
         +StructNode[] children
         +boolean isRange
     }
@@ -79,13 +79,15 @@ classDiagram
 | `valueType` | `ValueType` | No | `nodeType === 'value'` の場合の不変データ型（`string`, `number`, `boolean`, `null`）。 |
 | `value` | `string \| number \| boolean \| null` | No | `nodeType === 'value'` の場合のスカラー値。TreeView の `description` やホバー表示に利用。 |
 | `children` | `StructNode[]` | Yes | 子ノード要素の配列（子がない場合は空配列 `[]`）。 |
-| `isRange` | `boolean` | No | 配列要素数が `maxArrayItems` を超えた場合に自動生成される範囲ノード（例: `[0 .. 49]`）を示すフラグ。 |
+| `isRange` | `boolean` | No | 配列要素数が `maxArrayItems` を超えた場合に自動生成される範囲ノード（例: `[1 .. 50]`）を示すフラグ。 |
 
 ---
 
 ## 2. パース結果とエラーハンドリング (ParseResult)
 
-コアモジュールでは例外 (`throw`) をスローせず、関数型プログラミングで用いられる **Result パターン** (`ParseSuccess` | `ParseError`) を採用しています。
+外部との公開境界となる各パーサーの公開メソッド（`JsonParser.parse`, `YamlParser.parse`, `MarkdownParser.parse`, および `StructMapService.build`）では、呼び出し元へ例外 (`throw`) を外部に漏らさず、安全な **Result パターン** (`ParseSuccess` | `ParseError`) を返却します。
+
+内部で利用される `convertObjectToStructTree` や `FrontmatterParser.parse` などの内部ヘルパーは循環参照やノード数上限超過時に例外をスローするため、各パーサーの公開境界内にて `try...catch` で捕捉し、適切な `ParseError` に変換します。
 
 ```mermaid
 classDiagram
@@ -94,24 +96,27 @@ classDiagram
     }
 
     class ParseSuccess {
-        +type: 'success'
+        +boolean success = true
         +StructTree tree
     }
 
     class ParseError {
         +boolean success = false
-        +ParseErrorCode code
+        +string code
         +string message
+        +number line
+        +number column
     }
 
     class ParseErrorCode {
         <<enumeration>>
-        FILE_TOO_LARGE
         JSON_PARSE_ERROR
         YAML_PARSE_ERROR
         FRONTMATTER_PARSE_ERROR
         UNSUPPORTED_FORMAT
         EMPTY_FILE
+        FILE_TOO_LARGE
+        PARSE_ERROR
     }
 
     ParseResult <|-- ParseSuccess
@@ -129,6 +134,7 @@ classDiagram
 | `JSON_PARSE_ERROR` | `JSON.parse` 構文エラー発生時 | JSON Parse Error |
 | `YAML_PARSE_ERROR` | `js-yaml` 構文エラー発生時 | YAML Parse Error |
 | `FRONTMATTER_PARSE_ERROR` | YAML Frontmatter の構文エラー時 | Frontmatter Parse Error |
+| `PARSE_ERROR` | 一般的な構造解析エラー発生時 | Parse Error |
 
 ---
 
@@ -140,13 +146,14 @@ classDiagram
 graph TD
     Service["StructMapService.build()"]
 
-    Service -->|".json"| JP["JsonParser"]
-    Service -->|".yml / .yaml"| YP["YamlParser"]
-    Service -->|".md / .markdown"| MP["MarkdownParser"]
+    Service -->|".json"| JP["JsonParser.parse()"]
+    Service -->|".yml / .yaml"| YP["YamlParser.parse()"]
+    Service -->|".md / .markdown"| MP["MarkdownParser.parse()"]
 
-    JP --> Converter["objectConverter.convertObjectToStructTree"]
+    JP --> Converter["convertObjectToStructTree"]
     YP --> Converter
-    MP --> FP["FrontmatterParser"]
+    MP --> FP["FrontmatterParser.parse()"]
+    FP --> JSYaml["js-yaml (yaml.load)"]
 
     Converter --> Tree["StructTree (Success)"]
     FP --> Tree
@@ -155,14 +162,14 @@ graph TD
 ### 各パーサーの概要
 
 1. **`JsonParser`**:
-   - `JSON.parse` を実行し、生成された JavaScript オブジェクトを `objectConverter` に渡して `StructTree` に変換します。
+   - `JSON.parse` を実行し、生成された JavaScript オブジェクトを `convertObjectToStructTree` に渡して `StructTree` に変換します。
 2. **`YamlParser`**:
-   - `js-yaml` パッケージの `yaml.load()` を使用してオブジェクト化し、`objectConverter` で変換します。
+   - `js-yaml` パッケージの `yaml.load()` を使用してオブジェクト化し、`convertObjectToStructTree` で変換します。
 3. **`MarkdownParser`**:
    - 行単位でテキストを走査し、`#` の数（H1〜H6）に基づいてスタック構造で階層木をビルドします。
    - 先頭の Frontmatter (YAML) を検出した場合は、`FrontmatterParser` を呼び出して Frontmatter 構造をツリーの先頭ノードに統合します。
 4. **`FrontmatterParser`**:
-   - `---` で囲まれた Frontmatter 文字列を取り出し、`YamlParser` で解析した結果を `Frontmatter (YAML)` セクションとして挿入します。
+   - `---` で囲まれた Frontmatter 文字列を取り出し、`js-yaml` (`yaml.load()`) を直接使用して解析・オブジェクト化し、その結果を `Frontmatter (YAML)` セクションノードとして挿入します。
 
 ---
 
@@ -173,11 +180,11 @@ graph TD
 ```text
 [元の巨大な配列: 120件]
   └─ items
-      ├─ [0 .. 49]
+      ├─ [1 .. 50]
       │   ├─ [0]
       │   └─ ...
-      ├─ [50 .. 99]
-      └─ [100 .. 119]
+      ├─ [51 .. 100]
+      └─ [101 .. 120]
 ```
 
 ---

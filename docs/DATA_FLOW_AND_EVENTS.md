@@ -23,11 +23,11 @@ StructMap-Solo では、VSCode のイベントリスナー（エディタ切り�
 | ID | ユースシーン | トリガーイベント / コマンド | 主な処理概要 |
 | :--- | :--- | :--- | :--- |
 | **UC-1** | **拡張機能起動時** | `activate(context)` | サービス初期化、`TreeDataProvider` 登録、ビュー生成、状態復元 |
-| **UC-2** | **エディタ切り替え時** | `vscode.window.onDidChangeActiveTextEditor` | contextKey (`structmap.typesSupported`) 更新、自動更新設定確認、ツリー再描画 |
-| **UC-3** | **ファイル編集時** | `vscode.workspace.onDidChangeTextDocument` | デバウンスタイマー (既定 500ms) 制御、タイマー発火後のツリー再描画 |
-| **UC-4** | **表示トグル操作時** | `structmap-solo.toggleTypes` 等 | ViewState 更新 (`globalState` 永続化)、`refresh()` 発火による UI 再描画 |
-| **UC-5** | **ノードクリック時** | `structmap-solo.jumpToNode` | ノードのパスをもとにエディタ内検索、対象位置 (Range) へカーソル移動・ハイライト |
-| **UC-6** | **ツリーコピー時** | `structmap-solo.copyTree` | 全体/選択ノードを `TreeRenderer` でテキスト（Unicode/ASCII 罫線）化しクリップボードに保存 |
+| **UC-2** | **エディタ切り替え時** | `vscode.window.onDidChangeActiveTextEditor` | Context Key (`structmap-solo.typesSupported`) 更新、自動更新設定確認、ツリー再描画 |
+| **UC-3** | **ファイル編集時** | `vscode.workspace.onDidChangeTextDocument` | アクティブ文書検証、デバウンスタイマー (既定 500ms) 制御、ツリー再描画 |
+| **UC-4** | **表示トグル操作時** | `structmap-solo.toggleTypes` 等 | ViewState 更新 (`set*` メソッド呼び出し & `globalState` 永続化)、`refresh()` 発火 |
+| **UC-5** | **ノードクリック時** | `structmap-solo.jumpToNode` | `nodeNavigator.jumpToNode(editor, node)` による位置特定・カーソル移動 |
+| **UC-6** | **ツリーコピー時** | `structmap-solo.copyTree` | アクティブ文書を取得し `StructMapService` でビルド、`TreeRenderer` で描画しクリップボードへ保存 |
 
 ---
 
@@ -73,7 +73,7 @@ sequenceDiagram
 
 ## UC-2: アクティブエディタ切り替え時 (onDidChangeActiveTextEditor)
 
-ユーザーがタブを切り替えてアクティブなエディタを変更した際のデータフローです。タイマーのキャンセル、データ型サポート状況のコンテキスト更新、およびツリー再描画を行います。
+ユーザーがタブを切り替えてアクティブなエディタを変更した際のデータフローです。タイマーのキャンセル、データ型サポート状況の Context Key 更新、およびツリー再描画を行います。
 
 ```mermaid
 sequenceDiagram
@@ -88,27 +88,19 @@ sequenceDiagram
     U->>VS: エディタタブを切り替え
     VS->>Ext: onDidChangeActiveTextEditor(editor)
     Ext->>Ext: cancelPendingRefresh() (既存デバウンスタイマー解除)
-    alt editor === undefined
-        Ext->>VS: setContext('structmap-solo.typesSupported', false)
+    Ext->>Svc: supportsTypes(editor.document.fileName)
+    Svc-->>Ext: boolean (JSON/YAMLなら true, MDなら false)
+    Ext->>VS: setContext('structmap-solo.typesSupported', boolean)
+
+    alt autoRefresh が有効
         Ext->>TP: refresh()
         TP->>TP: _onDidChangeTreeData.fire()
         TV->>TP: getChildren(undefined)
-        TP-->>TV: No Active Editor 表示用の StructTreeItem[]
-    else editor が存在する
-        Ext->>Svc: supportsTypes(editor.document.fileName)
-        Svc-->>Ext: boolean (JSON/YAMLなら true, MDなら false)
-        Ext->>VS: setContext('structmap-solo.typesSupported', boolean)
-
-        alt autoRefresh が有効
-            Ext->>TP: refresh()
-            TP->>TP: _onDidChangeTreeData.fire()
-            TV->>TP: getChildren(undefined)
-            TP->>Svc: build(fileName, content, ...)
-            Svc-->>TP: ParseResult
-            TP-->>TV: 更新された StructTreeItem[]
-        else autoRefresh が無効
-            Ext-->>Ext: 処理をスキップ (更新しない)
-        end
+        TP->>Svc: build(fileName, content, ...)
+        Svc-->>TP: ParseResult
+        TP-->>TV: 更新された StructTreeItem[]
+    else autoRefresh が無効
+        Ext-->>Ext: 処理をスキップ (更新しない)
     end
 ```
 
@@ -116,7 +108,7 @@ sequenceDiagram
 
 ## UC-3: ドキュメント編集時 (onDidChangeTextDocument & Debounce)
 
-ファイル編集時、タイピングのたびにパースが走るのを防ぐため、デバウンス処理（デフォルト 500ms）を挟んでツリーを自動更新します。
+ファイル編集時、アクティブ文書かどうかの検証、デバウンス処理（デフォルト 500ms）、および設定確認を経てツリーを更新します。
 
 ```mermaid
 sequenceDiagram
@@ -131,20 +123,24 @@ sequenceDiagram
 
     U->>VS: テキスト入力・編集
     VS->>Ext: onDidChangeTextDocument(e)
-    Ext->>Ext: cancelPendingRefresh() (前回のタイマーをクリア)
-
-    Ext->>Timer: setTimeout(callback, debounceMs [500ms])
-    Note over Ext,Timer: ユーザーの連続入力中、タイマーはリセットされ続ける
-
-    Timer-->>Ext: タイマー発火 (500ms 経過)
-    Ext->>Ext: アクティブエディタおよび autoRefresh の再検証
-
-    Ext->>TP: refresh()
-    TP->>TP: _onDidChangeTreeData.fire()
-    TV->>TP: getChildren(undefined)
-    TP->>Svc: build(fileName, content, ...)
-    Svc-->>TP: ParseResult (ParseSuccess)
-    TP-->>TV: 最新構造の StructTreeItem[]
+    alt 変更文書がアクティブ文書ではない
+        Ext-->>VS: 処理終了 (スキップ)
+    else 変更文書がアクティブ文書
+        Ext->>Ext: cancelPendingRefresh() (前回のタイマーをクリア)
+        alt autoRefresh が無効
+            Ext-->>VS: 処理終了 (スキップ)
+        else autoRefresh が有効
+            Ext->>Timer: setTimeout(callback, debounceMs [500ms])
+            Timer-->>Ext: タイマー発火 (500ms 経過)
+            Ext->>Ext: アクティブ文書および autoRefresh の再検証
+            Ext->>TP: refresh()
+            TP->>TP: _onDidChangeTreeData.fire()
+            TV->>TP: getChildren(undefined)
+            TP->>Svc: build(fileName, content, ...)
+            Svc-->>TP: ParseResult
+            TP-->>TV: 最新構造の StructTreeItem[]
+        end
+    end
 ```
 
 ---
@@ -162,13 +158,15 @@ sequenceDiagram
     participant TP as StructMapTreeProvider
     participant TV as TreeView
 
-    U->>Cmd: 「Show/Hide Node Types」ボタンをクリック
-    Cmd->>VSM: toggleShowTypes()
-    VSM->>VSM: ViewState 更新 & globalState.update() 永続化
+    U->>Cmd: 「Toggle Types」ボタンをクリック
+    Cmd->>VSM: getState()
+    VSM-->>Cmd: currentViewState
+    Cmd->>VSM: setShowTypes(!currentViewState.showTypes)
+    VSM->>VSM: updateState({ showTypes }) & globalState 永続化
+    VSM-->>Cmd: Promise<ViewState> (updatedViewState)
     Cmd->>TP: refresh()
     TP->>TP: _onDidChangeTreeData.fire()
     TV->>TP: getChildren(undefined)
-    Note over TP,TV: ViewState.showTypes を参照してノードラベルを再フォーマット
     TP-->>TV: 再フォーマットされた StructTreeItem[]
 ```
 
@@ -176,7 +174,7 @@ sequenceDiagram
 
 ## UC-5: ツリーノードクリックによるエディタジャンプ (jumpToNode)
 
-サイドバーの任意のノードをクリックした際、`NodeNavigator` がアクティブエディタ内をスキャンし、対象行へカーソルを移動・ハイライトします。
+サイドバーの任意のノードをクリックした際、`nodeNavigator.jumpToNode(editor, node)` が呼び出され、エディタ内をスキャンして対象位置へカーソル移動・ハイライトします。
 
 ```mermaid
 sequenceDiagram
@@ -189,45 +187,39 @@ sequenceDiagram
 
     U->>TV: ツリー項目をクリック
     TV->>Cmd: executeCommand('structmap-solo.jumpToNode', item.node)
-    Cmd->>Nav: navigateToNode(editor, node)
-    Nav->>Ed: editor.document.getText()
-    Nav->>Nav: フォーマット別 (MD/JSON/YAML) 位置検索 (findNodePosition)
-    Nav-->>Nav: Range (Start Line/Char ~ End Line/Char) 算出
-    Nav->>Ed: editor.selection = selection
-    Nav->>Ed: editor.revealRange(range, InCenter)
+    Cmd->>Nav: jumpToNode(editor, node)
+    Nav->>Nav: findNodePosition(document, node)
+    Nav-->>Nav: Position (Line, Character) 算出
+    Nav->>Ed: selection = Selection(position, position)
+    Nav->>Ed: revealRange(Range, InCenter)
+    Nav-->>Cmd: boolean (true: 成功 / false: 失敗)
 ```
 
 ---
 
 ## UC-6: ツリー構造のテキストコピー (copyTree)
 
-選択したノードまたはツリー全体をテキストとしてクリップボードへコピーする処理です。
+アクティブなエディタからドキュメント内容を取得し、`StructMapService` と `TreeRenderer` を通じてテキスト化してクリップボードへ書き込む処理です。
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant U as User
     participant Cmd as structmap-solo.copyTree
-    participant TP as StructMapTreeProvider
+    participant Ed as Active TextEditor
     participant Svc as StructMapService
     participant VSM as ViewStateManager
     participant Ren as TreeRenderer
     participant Clip as vscode.env.clipboard
 
-    U->>Cmd: 右クリックメニュー「Copy Tree」実行
-    Cmd->>TP: getChildren() または選択アイテムの獲得
-    Cmd->>Svc: build(fileName, content, ...)
-    Svc-->>Cmd: ParseResult (StructTree)
+    U->>Cmd: コマンド実行 (copyTree)
+    Cmd->>Ed: activeTextEditor.document (fileName, content 取得)
+    Cmd->>Svc: build(fileName, content)
+    Svc-->>Cmd: ParseResult (ParseSuccess)
     Cmd->>VSM: getState()
     VSM-->>Cmd: ViewState (treeStyle, showTypes, showRoot)
-    Cmd->>Ren: render(tree, renderOptions)
+    Cmd->>Ren: render(parseResult.tree, viewState)
     Ren-->>Cmd: 罫線付きツリーテキスト文字列
-    Cmd->>Clip: writeText(text)
-    alt writeText が成功
-        Clip-->>Cmd: 書き込み完了 (Promise 解決)
-        Cmd->>U: 情報メッセージ表示 ("Tree copied to clipboard")
-    else writeText が拒否
-        Clip-->>Cmd: エラー (Promise 拒否)
-        Note over Cmd: 明示的な拒否処理がないためエラーが呼び出し元へ伝播し、成功メッセージは表示されない
-    end
+    Cmd->>Clip: writeText(treeText)
+    Cmd->>U: 情報メッセージ表示 ("StructMap tree copied to clipboard.")
 ```
