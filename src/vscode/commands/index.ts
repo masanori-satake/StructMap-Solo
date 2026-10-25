@@ -96,10 +96,6 @@ export function registerCommands(
       // Update view description to reflect current style
       updateTreeStyleDescription(nextStyle);
       treeDataProvider.refresh();
-      const currentState = viewStateManager.getState();
-      const nextStyle = currentState.treeStyle === 'unicode' ? 'ascii' : 'unicode';
-      await viewStateManager.setTreeStyle(nextStyle);
-      treeDataProvider.refresh();
     }),
 
     vscode.commands.registerCommand('structmap-solo.toggleRoot', async () => {
