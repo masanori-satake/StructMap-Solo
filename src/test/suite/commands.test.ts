@@ -188,6 +188,10 @@ suite('Commands & ViewState Integration Test Suite', () => {
       assert.strictEqual(viewStateManager.getState().showTypes, true);
 
       // Mock activeTextEditor with Markdown document
+      const originalActiveTextEditorDescriptor = Object.getOwnPropertyDescriptor(
+        vscode.window,
+        'activeTextEditor'
+      );
       Object.defineProperty(vscode.window, 'activeTextEditor', {
         value: {
           document: { fileName: 'sample.md' } as vscode.TextDocument,
@@ -212,10 +216,11 @@ suite('Commands & ViewState Integration Test Suite', () => {
         // showTypes toggles to false for JSON
         assert.strictEqual(viewStateManager.getState().showTypes, false);
       } finally {
-        Object.defineProperty(vscode.window, 'activeTextEditor', {
-          value: undefined,
-          configurable: true,
-        });
+        if (originalActiveTextEditorDescriptor) {
+          Object.defineProperty(vscode.window, 'activeTextEditor', originalActiveTextEditorDescriptor);
+        } else {
+          Reflect.deleteProperty(vscode.window, 'activeTextEditor');
+        }
       }
     } finally {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
