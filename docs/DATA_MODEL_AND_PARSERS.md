@@ -79,7 +79,7 @@ classDiagram
 | `valueType` | `ValueType` | No | `nodeType === 'value'` の場合の不変データ型（`string`, `number`, `boolean`, `null`）。 |
 | `value` | `string \| number \| boolean \| null` | No | `nodeType === 'value'` の場合のスカラー値。TreeView の `description` やホバー表示に利用。 |
 | `children` | `StructNode[]` | Yes | 子ノード要素の配列（子がない場合は空配列 `[]`）。 |
-| `isRange` | `boolean` | No | 配列要素数が `maxArrayItems` を超えた場合に自動生成される範囲ノード（例: `[1 .. 50]`）を示すフラグ。 |
+| `isRange` | `boolean` | No | 配列要素数が `maxArrayItems` を超えた場合に自動生成される範囲ノード（例: 120件の配列で `maxArrayItems = 50` の場合、残りをまとめる `[50 .. 119]`）を示すフラグ。 |
 
 ---
 
@@ -175,16 +175,16 @@ graph TD
 
 ## 4. 配列要素の Chunking 制御 (objectConverter)
 
-巨大な配列データ（例: 10,000 件のリスト）が解析された際、サイドバー描画のパフォーマンス低下を防止するため、`objectConverter` は `maxArrayItems` (既定 50) を超える配列を自動的に**範囲ノード (`isRange: true`)** にチャンク分割します。
+巨大な配列データ（例: 10,000 件のリスト）が解析された際、サイドバー描画のパフォーマンス低下を防止するため、`objectConverter` は先頭 `maxArrayItems` 件 (既定 50) を `[0]` から始まる個別ノードとして配置し、残りを単一の**範囲ノード (`isRange: true`)** にまとめます。
 
 ```text
-[元の巨大な配列: 120件]
+[元の巨大な配列: 120件、maxArrayItems = 50]
   └─ items
-      ├─ [1 .. 50]
-      │   ├─ [0]
-      │   └─ ...
-      ├─ [51 .. 100]
-      └─ [101 .. 120]
+      ├─ [0]
+      ├─ [1]
+      ├─ ...
+      ├─ [49]
+      └─ [50 .. 119] (isRange: true)
 ```
 
 ---

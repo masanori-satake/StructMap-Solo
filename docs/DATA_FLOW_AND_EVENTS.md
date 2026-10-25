@@ -133,12 +133,16 @@ sequenceDiagram
             Ext->>Timer: setTimeout(callback, debounceMs [500ms])
             Timer-->>Ext: タイマー発火 (500ms 経過)
             Ext->>Ext: アクティブ文書および autoRefresh の再検証
-            Ext->>TP: refresh()
-            TP->>TP: _onDidChangeTreeData.fire()
-            TV->>TP: getChildren(undefined)
-            TP->>Svc: build(fileName, content, ...)
-            Svc-->>TP: ParseResult
-            TP-->>TV: 最新構造の StructTreeItem[]
+            alt アクティブ文書が一致し、かつ autoRefresh が有効
+                Ext->>TP: refresh()
+                TP->>TP: _onDidChangeTreeData.fire()
+                TV->>TP: getChildren(undefined)
+                TP->>Svc: build(fileName, content, ...)
+                Svc-->>TP: ParseResult
+                TP-->>TV: 最新構造の StructTreeItem[]
+            else アクティブ文書が不一致、または autoRefresh が無効
+                Ext-->>Ext: 処理終了 (スキップ)
+            end
         end
     end
 ```
