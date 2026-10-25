@@ -1,4 +1,7 @@
-# StructMap-Solo v1.0.0
+# StructMap-Solo
+
+[![Version](https://img.shields.io/badge/version-v1.0.0-blue.svg)](package.json)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/masanori-satake/StructMap-Solo)](https://github.com/masanori-satake/StructMap-Solo/releases)
 
 <p align="center">
   <img src="assets/icon.png" width="128" height="128" alt="StructMap-Solo Logo" />
