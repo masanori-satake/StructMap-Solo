@@ -81,4 +81,18 @@ export class StructMapService {
       ext === '.yaml'
     );
   }
+
+  /**
+   * Determines whether the specified file format supports type information display.
+   *
+   * @param fileName Name or path of the file.
+   * @returns True if the file format supports types (e.g. JSON, YAML), false otherwise (e.g. Markdown, unsupported).
+   */
+  public supportsTypes(fileName?: string): boolean {
+    if (!fileName) {
+      return false;
+    }
+    const ext = this.getFileExtension(fileName);
+    return ext === '.json' || ext === '.yml' || ext === '.yaml';
+  }
 }

@@ -168,6 +168,28 @@ suite('StructMapService Test Suite', () => {
     }
   });
 
+  test('supportsTypes: Returns true only for JSON and YAML files', () => {
+    // JSON files
+    assert.strictEqual(service.supportsTypes('data.json'), true);
+    assert.strictEqual(service.supportsTypes('/path/to/data.JSON'), true);
+
+    // YAML files
+    assert.strictEqual(service.supportsTypes('config.yaml'), true);
+    assert.strictEqual(service.supportsTypes('config.yml'), true);
+    assert.strictEqual(service.supportsTypes('CONFIG.YAML'), true);
+
+    // Markdown files
+    assert.strictEqual(service.supportsTypes('README.md'), false);
+    assert.strictEqual(service.supportsTypes('doc.markdown'), false);
+    assert.strictEqual(service.supportsTypes('notes.MD'), false);
+
+    // Unsupported or empty
+    assert.strictEqual(service.supportsTypes('sample.txt'), false);
+    assert.strictEqual(service.supportsTypes('noext'), false);
+    assert.strictEqual(service.supportsTypes(''), false);
+    assert.strictEqual(service.supportsTypes(undefined), false);
+  });
+
   test('AC-7 VSCode API非依存: StructMapService does not import VSCode API', () => {
     const serviceFilePath = path.resolve(
       __dirname,
