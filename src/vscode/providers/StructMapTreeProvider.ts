@@ -75,16 +75,21 @@ function formatNodeLabel(node: StructNode, viewState: ViewState): string {
 export class StructTreeItem extends vscode.TreeItem {
   public readonly node?: StructNode;
   public readonly isError: boolean;
+  public readonly parent?: StructTreeItem;
 
   /**
    * Constructs a StructTreeItem for a StructNode.
    */
-  constructor(node: StructNode, viewState?: ViewState);
+  constructor(node: StructNode, viewState?: ViewState, parent?: StructTreeItem);
   /**
    * Constructs an error/status StructTreeItem with a display message and optional tooltip.
    */
   constructor(label: string, tooltip?: string);
-  constructor(nodeOrLabel: StructNode | string, tooltipOrViewState?: string | ViewState) {
+  constructor(
+    nodeOrLabel: StructNode | string,
+    tooltipOrViewState?: string | ViewState,
+    parent?: StructTreeItem
+  ) {
     if (typeof nodeOrLabel === 'string') {
       super(nodeOrLabel, vscode.TreeItemCollapsibleState.None);
       this.isError = true;
@@ -112,8 +117,10 @@ export class StructTreeItem extends vscode.TreeItem {
 
       const displayLabel = formatNodeLabel(node, viewState);
       super(displayLabel, collapsibleState);
+      this.id = node.id;
       this.node = node;
       this.isError = false;
+      this.parent = parent;
       this.iconPath = getIconForNodeType(node.nodeType);
       this.contextValue = 'structMapNodeItem';
 
@@ -159,6 +166,13 @@ export class StructMapTreeProvider implements vscode.TreeDataProvider<StructTree
    */
   public refresh(): void {
     this._onDidChangeTreeData.fire();
+  }
+
+  /**
+   * Returns the parent of a given TreeItem element to support TreeView API navigation and reveal.
+   */
+  public getParent(element: StructTreeItem): StructTreeItem | undefined {
+    return element.parent;
   }
 
   /**
@@ -230,6 +244,8 @@ export class StructMapTreeProvider implements vscode.TreeDataProvider<StructTree
       return [];
     }
 
-    return element.node.children.map((child) => new StructTreeItem(child, viewState));
+    return element.node.children.map(
+      (child) => new StructTreeItem(child, viewState, element)
+    );
   }
 }

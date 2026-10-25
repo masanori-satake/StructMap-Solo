@@ -1,6 +1,6 @@
 # StructMap-Solo
 
-[![Version](https://img.shields.io/badge/version-v1.1.0-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-v1.2.0-blue.svg)](package.json)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/masanori-satake/StructMap-Solo)](https://github.com/masanori-satake/StructMap-Solo/releases)
 
 <p align="center">
@@ -69,6 +69,7 @@ users []
 ## 機能一覧 (Key Functions)
 
 - **TreeView (構造表示)**: エディタで開いているドキュメントの構造をリアルタイムでサイドバーに表示します。
+- **Expand All / Collapse All (すべて展開・すべて集約)**: ツリーノードの一括展開・一括集約に対応（※配列要素数が `maxArrayItems` を超える場合の範囲ノード等は自動展開を制限）。
 - **Copy Tree (ツリーコピー)**: 選択したノードまたはツリー全体をテキスト（ASCII または Unicode 罫線）としてクリップボードにコピーします。
 - **Unicode / ASCII スタイル切り替え**: ツリー描画スタイルを Unicode 罫線（`└─`, `├─`）と ASCII 罫線（`` `-- ``, `|--`）でワンタップ切り替え可能です。
 - **Type Mode (型表示トグル)**: JSON/YAML/Frontmatter のデータ型（`string`, `number`, `boolean`, `array`, `object`）の表示/非表示を切り替えられます。

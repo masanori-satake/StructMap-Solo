@@ -35,7 +35,8 @@ export function activate(context: vscode.ExtensionContext): void {
     treeDataProvider,
     viewStateManager,
     structMapService,
-    nodeNavigator
+    nodeNavigator,
+    treeView
   );
 
   updateTypesSupportedContext(vscode.window.activeTextEditor, structMapService);
