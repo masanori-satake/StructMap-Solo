@@ -1,6 +1,8 @@
 {
   "extension.description": "Local-First, Privacy-First structure visualizer for Markdown, JSON, and YAML without AI.",
   "command.copyTree": "Copy Tree",
+  "command.expandAll": "Expand All",
+  "command.collapseAll": "Collapse All",
   "command.toggleTypes": "Toggle Types",
   "command.toggleTreeStyle": "Toggle Tree Style",
   "command.toggleRoot": "Toggle Root",

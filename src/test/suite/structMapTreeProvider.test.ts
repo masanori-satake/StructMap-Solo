@@ -217,4 +217,30 @@ suite('StructMapTreeProvider Test Suite', () => {
     });
     provider.refresh();
   });
+
+  test('getParent returns parent StructTreeItem or undefined', () => {
+    const mockEditor = createMockEditor(
+      'config.yaml',
+      'server:\n  port: 8080\n'
+    );
+    const provider = new StructMapTreeProvider(service, () => mockEditor);
+    const rootItems = provider.getChildren() as StructTreeItem[];
+    assert.strictEqual(rootItems.length, 1);
+    const rootItem = rootItems[0];
+
+    // Parent of root item is undefined
+    assert.strictEqual(provider.getParent(rootItem), undefined);
+
+    // Parent of serverItem is rootItem
+    const serverItems = provider.getChildren(rootItem) as StructTreeItem[];
+    assert.strictEqual(serverItems.length, 1);
+    const serverItem = serverItems[0];
+    assert.strictEqual(provider.getParent(serverItem), rootItem);
+
+    // Parent of portItem is serverItem
+    const portItems = provider.getChildren(serverItem) as StructTreeItem[];
+    assert.strictEqual(portItems.length, 1);
+    const portItem = portItems[0];
+    assert.strictEqual(provider.getParent(portItem), serverItem);
+  });
 });

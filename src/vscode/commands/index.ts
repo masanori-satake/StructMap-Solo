@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import { isParseSuccess, StructMapService, StructNode, TreeRenderer } from '../../core';
 import { NodeNavigator } from '../navigation/NodeNavigator';
-import { StructMapTreeProvider } from '../providers/StructMapTreeProvider';
+import { StructMapTreeProvider, StructTreeItem } from '../providers/StructMapTreeProvider';
 import { ViewStateManager } from '../state/ViewState';
-import { updateTreeStyleDescription } from '../view/StructMapView';
+import { structMapTreeView, updateTreeStyleDescription } from '../view/StructMapView';
 
 /**
  * Updates the VS Code context key indicating whether the active document supports type toggle.
@@ -40,7 +40,8 @@ export function registerCommands(
   treeDataProvider: StructMapTreeProvider,
   viewStateManager: ViewStateManager,
   structMapService: StructMapService,
-  nodeNavigator: NodeNavigator
+  nodeNavigator: NodeNavigator,
+  treeView?: vscode.TreeView<StructTreeItem>
 ): void {
   context.subscriptions.push(
     vscode.commands.registerCommand('structmap-solo.copyTree', async () => {
@@ -73,6 +74,52 @@ export function registerCommands(
           ? vscode.l10n.t('StructMap tree copied to clipboard.')
           : 'StructMap tree copied to clipboard.'
       );
+    }),
+
+    vscode.commands.registerCommand('structmap-solo.expandAll', async () => {
+      const activeView = treeView || (structMapTreeView as vscode.TreeView<StructTreeItem> | undefined);
+      const topItems = (await treeDataProvider.getChildren()) as StructTreeItem[] | undefined;
+      if (!topItems || topItems.length === 0) {
+        return;
+      }
+
+      async function expandNode(item: StructTreeItem): Promise<void> {
+        if (!item.node || item.isError) {
+          return;
+        }
+        // Skip expanding range nodes (elements beyond maxArrayItems)
+        if (item.node.isRange) {
+          return;
+        }
+
+        const children = (await treeDataProvider.getChildren(item)) as StructTreeItem[] | undefined;
+        if (children && children.length > 0) {
+          if (activeView) {
+            try {
+              await activeView.reveal(item, { expand: true, focus: false, select: false });
+            } catch {
+              // Ignore reveal errors
+            }
+          }
+          for (const child of children) {
+            await expandNode(child);
+          }
+        }
+      }
+
+      for (const item of topItems) {
+        await expandNode(item);
+      }
+    }),
+
+    vscode.commands.registerCommand('structmap-solo.collapseAll', async () => {
+      try {
+        await vscode.commands.executeCommand(
+          'workbench.actions.treeView.structmap-solo.view.collapseAll'
+        );
+      } catch {
+        treeDataProvider.refresh();
+      }
     }),
 
     vscode.commands.registerCommand('structmap-solo.toggleTypes', async () => {
