@@ -1,9 +1,18 @@
 const { chromium } = require('playwright');
+const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
 (async () => {
-  const browser = await chromium.launch();
+  let browser;
+  try {
+    browser = await chromium.launch();
+  } catch (err) {
+    console.log('Chromium executable not found. Installing chromium...');
+    execSync('npx playwright install chromium', { stdio: 'inherit' });
+    browser = await chromium.launch();
+  }
+
   const page = await browser.newPage();
   const svgPath = path.resolve('assets/icon.svg');
   const svgContent = fs.readFileSync(svgPath, 'utf8');

@@ -4,14 +4,18 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -22,27 +26,81 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Run Lint
+        run: npm run lint
+
+      - name: Run Tests
+        run: xvfb-run --auto-servernum npm test
+
       - name: Package Extension (.vsix)
         run: npx @vscode/vsce package --no-git-tag-version
 
+      - name: Upload VSIX Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-vsix
+          path: "*.vsix"
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Download VSIX Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: extension-vsix
+
+      - name: Determine VSIX File Path
+        id: vsix_info
+        run: |
+          VSIX_PATH=$(ls *.vsix | head -n 1)
+          echo "vsix_path=${VSIX_PATH}" >> $GITHUB_OUTPUT
+
       - name: Publish to Visual Studio Marketplace
-        run: npx @vscode/vsce publish --skip-duplicate
+        id: vsce_publish
+        run: |
+          OUTPUT=$(npx @vscode/vsce publish --packagePath "${{ steps.vsix_info.outputs.vsix_path }}" --skip-duplicate 2>&1) || {
+            echo "$OUTPUT"
+            exit 1
+          }
+          echo "$OUTPUT"
+          if echo "$OUTPUT" | grep -qi "already exists"; then
+            echo "skipped=true" >> $GITHUB_OUTPUT
+          else
+            echo "skipped=false" >> $GITHUB_OUTPUT
+          fi
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
       - name: Get Version
         id: get_version
+        if: steps.vsce_publish.outputs.skipped != 'true'
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Create or Update Release
-        uses: softprops/action-gh-release@v2
+        if: steps.vsce_publish.outputs.skipped != 'true'
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           tag_name: ${{ steps.get_version.outputs.tag }}
           name: ${{ steps.get_version.outputs.tag }}
-          files: "*.vsix"
+          target_commitish: ${{ github.sha }}
+          files: "${{ steps.vsix_info.outputs.vsix_path }}"
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
