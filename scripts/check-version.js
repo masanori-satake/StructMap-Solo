@@ -145,7 +145,7 @@ if (checkBump) {
     }
 
     if (!baseRef) {
-      console.log('Could not determine base git ref (origin/main, main, etc.). Skipping version bump diff check.');
+      errors.push('Could not determine base git ref (origin/main, main, etc.). Cannot verify whether a version bump is required.');
     } else {
       let basePkgContent = null;
       try {
@@ -182,7 +182,7 @@ if (checkBump) {
       }
     }
   } catch (err) {
-    console.log(`Warning: Failed to execute git diff check (${err.message}).`);
+    errors.push(`Failed to execute git diff check (${err.message}). Cannot verify whether a version bump is required.`);
   }
 }
 
