@@ -2,7 +2,7 @@
   "name": "structmap-solo",
   "displayName": "StructMap-Solo",
   "description": "%extension.description%",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "icon": "assets/icon.png",
   "publisher": "masanori-satake",
   "repository": {
@@ -17,7 +17,10 @@
     "Other"
   ],
   "activationEvents": [
-    "onView:structmap-solo.view"
+    "onView:structmap-solo.view",
+    "onLanguage:markdown",
+    "onLanguage:json",
+    "onLanguage:yaml"
   ],
   "main": "./out/extension.js",
   "l10n": "./l10n",

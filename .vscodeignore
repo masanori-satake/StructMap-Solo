@@ -1,10 +1,15 @@
 .vscode/**
 .vscode-test/**
+.vscode-test.mjs
 .github/**
+.pre-commit-config.yaml
+.pre-commit-ci.yaml
 src/**
+out/test/**
+scripts/**
+docs/**
 tsconfig.json
 .eslintrc.js
 .git/**
 .gitignore
-node_modules/**
 *.vsix
