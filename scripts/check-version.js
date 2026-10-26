@@ -137,7 +137,10 @@ if (checkBump) {
     let baseRef = null;
     let baseRefName = '';
 
-    const candidates = [versionBaseRef, 'origin/main', 'main', 'origin/master', 'master'].filter(Boolean);
+    const candidates = versionBaseRef
+      ? [versionBaseRef]
+      : ['origin/main', 'main', 'origin/master', 'master'];
+    
     for (const cand of candidates) {
       try {
         baseRef = execFileSync('git', ['rev-parse', '--verify', '--end-of-options', `${cand}^{commit}`], {
