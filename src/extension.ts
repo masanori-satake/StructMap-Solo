@@ -6,6 +6,7 @@ import {
   NodeNavigator,
   registerCommands,
   StructMapTreeProvider,
+  TreeExpansionState,
   updateTypesSupportedContext,
   ViewStateManager,
 } from './vscode';
@@ -14,6 +15,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const viewStateManager = new ViewStateManager(context);
   const structMapService = new StructMapService();
   const nodeNavigator = new NodeNavigator();
+  const treeExpansionState = new TreeExpansionState();
 
   const treeDataProvider = new StructMapTreeProvider(
     structMapService,
@@ -30,13 +32,28 @@ export function activate(context: vscode.ExtensionContext): void {
   // Initialize description with current tree style
   updateTreeStyleDescription(viewStateManager.getState().treeStyle);
 
+  async function syncInitialExpansionState(): Promise<void> {
+    const topItems = (await treeDataProvider.getChildren()) as import('./vscode').StructTreeItem[] | undefined;
+    if (topItems) {
+      for (const item of topItems) {
+        if (item.node && item.node.id) {
+          treeExpansionState.expand(item.node.id);
+        }
+      }
+    }
+  }
+
+  // Register initial expanded nodes
+  syncInitialExpansionState();
+
   registerCommands(
     context,
     treeDataProvider,
     viewStateManager,
     structMapService,
     nodeNavigator,
-    treeView
+    treeView,
+    treeExpansionState
   );
 
   updateTypesSupportedContext(vscode.window.activeTextEditor, structMapService);
@@ -51,6 +68,16 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     treeView,
+    treeView.onDidExpandElement((e) => {
+      if (e.element.id) {
+        treeExpansionState.expand(e.element.id);
+      }
+    }),
+    treeView.onDidCollapseElement((e) => {
+      if (e.element.id) {
+        treeExpansionState.collapse(e.element.id);
+      }
+    }),
     new vscode.Disposable(cancelPendingRefresh),
     vscode.window.onDidChangeActiveTextEditor((editor) => {
       cancelPendingRefresh();
@@ -61,6 +88,8 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
       }
+      treeExpansionState.clear();
+      syncInitialExpansionState();
       treeDataProvider.refresh();
     }),
     vscode.workspace.onDidChangeTextDocument((e) => {

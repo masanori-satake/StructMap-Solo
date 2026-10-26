@@ -14,7 +14,12 @@ suite('Extension automatic refresh', () => {
       // Return a mock TreeView with description and dispose
       createTreeView: () => {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const view = { description: '', dispose: () => {} } as unknown as vscode.TreeView<vscode.TreeItem>;
+        const view = {
+          description: '',
+          dispose: () => {},
+          onDidExpandElement: () => ({ dispose: () => {} }),
+          onDidCollapseElement: () => ({ dispose: () => {} }),
+        } as unknown as vscode.TreeView<vscode.TreeItem>;
         return view;
       },
       onDidChangeActiveTextEditor: editors.event,
@@ -48,6 +53,7 @@ suite('Extension automatic refresh', () => {
             StructMapTreeProvider: class { refresh() { refreshes++; } },
             ViewStateManager: class { getState() { return { showTypes: true, showRoot: true, treeStyle: 'unicode' }; } },
             NodeNavigator: class {},
+            TreeExpansionState: class { expand() {} collapse() {} clear() {} isExpanded() { return false; } snapshot() { return new Set(); } },
             registerCommands: () => {},
             updateTypesSupportedContext: () => Promise.resolve(),
           };

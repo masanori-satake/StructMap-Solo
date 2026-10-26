@@ -2,6 +2,12 @@
 
 "StructMap-Solo" 拡張機能のすべての注目すべき変更はこのファイルに記録されます。
 
+## [1.3.0] - 2026-10-26
+
+### 追加 (Added)
+- 「可視ツリー構造をコピー（Copy Visible Tree）」コマンド (`structmap-solo.copyVisibleTree`) を追加
+- TreeView で現在展開されている可視ノードのみを対象としてツリー構造テキスト（Unicode/ASCII罫線）をクリップボードにコピーする機能を実装
+
 ## [1.2.3] - 2026-10-26
 
 ### 変更・最適化 (Changed / Optimized)

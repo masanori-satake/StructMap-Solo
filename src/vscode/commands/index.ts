@@ -3,6 +3,8 @@ import { isParseSuccess, StructMapService, StructNode, TreeRenderer } from '../.
 import { NodeNavigator } from '../navigation/NodeNavigator';
 import { StructMapTreeProvider, StructTreeItem } from '../providers/StructMapTreeProvider';
 import { ViewStateManager } from '../state/ViewState';
+import { TreeExpansionState } from '../view/TreeExpansionState';
+import { VisibleTreeProjection } from '../view/VisibleTreeProjection';
 import { structMapTreeView, updateTreeStyleDescription } from '../view/StructMapView';
 
 /**
@@ -41,7 +43,8 @@ export function registerCommands(
   viewStateManager: ViewStateManager,
   structMapService: StructMapService,
   nodeNavigator: NodeNavigator,
-  treeView?: vscode.TreeView<StructTreeItem>
+  treeView?: vscode.TreeView<StructTreeItem>,
+  treeExpansionState?: TreeExpansionState
 ): void {
   context.subscriptions.push(
     vscode.commands.registerCommand('structmap-solo.copyTree', async () => {
@@ -76,6 +79,43 @@ export function registerCommands(
       );
     }),
 
+    vscode.commands.registerCommand('structmap-solo.copyVisibleTree', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor || !editor.document) {
+        vscode.window.showWarningMessage(
+          vscode.l10n?.t
+            ? vscode.l10n.t('No active text editor to copy tree from.')
+            : 'No active text editor to copy tree from.'
+        );
+        return;
+      }
+      const fileName = editor.document.fileName;
+      const content = editor.document.getText();
+      const parseResult = structMapService.build(fileName, content);
+      if (!isParseSuccess(parseResult)) {
+        vscode.window.showWarningMessage(
+          vscode.l10n?.t
+            ? vscode.l10n.t('Unable to parse active document structure.')
+            : 'Unable to parse active document structure.'
+        );
+        return;
+      }
+      const viewState = viewStateManager.getState();
+      const projection = new VisibleTreeProjection();
+      const expandedSnapshot = treeExpansionState
+        ? treeExpansionState.snapshot()
+        : new Set<string>();
+      const visibleTree = projection.project(parseResult.tree, expandedSnapshot);
+      const renderer = new TreeRenderer();
+      const treeText = renderer.render(visibleTree, viewState);
+      await vscode.env.clipboard.writeText(treeText);
+      vscode.window.showInformationMessage(
+        vscode.l10n?.t
+          ? vscode.l10n.t('StructMap tree copied to clipboard.')
+          : 'StructMap tree copied to clipboard.'
+      );
+    }),
+
     vscode.commands.registerCommand('structmap-solo.expandAll', async () => {
       const activeView = treeView || (structMapTreeView as vscode.TreeView<StructTreeItem> | undefined);
       const topItems = (await treeDataProvider.getChildren()) as StructTreeItem[] | undefined;
@@ -94,6 +134,9 @@ export function registerCommands(
 
         const children = (await treeDataProvider.getChildren(item)) as StructTreeItem[] | undefined;
         if (children && children.length > 0) {
+          if (item.node.id && treeExpansionState) {
+            treeExpansionState.expand(item.node.id);
+          }
           if (activeView) {
             try {
               await activeView.reveal(item, { expand: true, focus: false, select: false });
@@ -113,6 +156,17 @@ export function registerCommands(
     }),
 
     vscode.commands.registerCommand('structmap-solo.collapseAll', async () => {
+      if (treeExpansionState) {
+        treeExpansionState.clear();
+        const topItems = (await treeDataProvider.getChildren()) as StructTreeItem[] | undefined;
+        if (topItems) {
+          for (const item of topItems) {
+            if (item.node && item.node.id) {
+              treeExpansionState.expand(item.node.id);
+            }
+          }
+        }
+      }
       try {
         await vscode.commands.executeCommand(
           'workbench.actions.treeView.structmap-solo.view.collapseAll'

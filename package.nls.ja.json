@@ -1,6 +1,7 @@
 {
   "extension.description": "AIを使用しない、ローカルファースト・プライバシーファーストな Markdown / JSON / YAML 構造可視化ツール。",
   "command.copyTree": "ツリー構造をコピー",
+  "command.copyVisibleTree": "可視ツリー構造をコピー",
   "command.expandAll": "すべて展開",
   "command.collapseAll": "すべて集約",
   "command.toggleTypes": "型表示の切り替え",
