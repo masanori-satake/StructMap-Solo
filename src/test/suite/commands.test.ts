@@ -287,6 +287,14 @@ suite('Commands & ViewState Integration Test Suite', () => {
       },
     } as unknown as StructMapTreeProvider;
 
+    const mockTreeView = {
+      description: undefined,
+    } as unknown as vscode.TreeView<StructTreeItem>;
+
+    // Set mock treeView
+    const { setStructMapTreeView } = await import('../../vscode/view/StructMapView');
+    setStructMapTreeView(mockTreeView as unknown as vscode.TreeView<vscode.TreeItem>);
+
     try {
       const context = { subscriptions: [] } as unknown as vscode.ExtensionContext;
       registerCommands(
@@ -306,11 +314,14 @@ suite('Commands & ViewState Integration Test Suite', () => {
 
       // ViewState updated to 'ascii'
       assert.strictEqual(viewStateManager.getState().treeStyle, 'ascii');
+      // treeStyle description on TreeView updated to 'ascii'
+      assert.strictEqual(mockTreeView.description, 'ascii');
       // treeDataProvider.refresh() must NOT be called to avoid view flickering
       assert.strictEqual(refreshed, false);
     } finally {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (vscode.commands as any).registerCommand = originalRegister;
+      setStructMapTreeView(undefined as unknown as vscode.TreeView<vscode.TreeItem>);
     }
   });
 
