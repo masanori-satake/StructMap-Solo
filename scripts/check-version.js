@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execFileSync, execSync } = require('child_process');
 
 const rootDir = path.resolve(__dirname, '..');
 
@@ -129,14 +129,24 @@ function isVsixRelevant(filepath) {
 if (checkBump) {
   console.log('Checking if version bump is required...');
   try {
+    const versionBaseRef = process.env.VERSION_BASE_REF;
+    if (/^0{40}$/.test(versionBaseRef || '')) {
+      throw new Error('VERSION_BASE_REF is an all-zero SHA; a valid comparison commit is required.');
+    }
+
     let baseRef = null;
     let baseRefName = '';
 
-    const candidates = ['origin/main', 'main', 'origin/master', 'master'];
+    const candidates = versionBaseRef
+      ? [versionBaseRef]
+      : ['origin/main', 'main', 'origin/master', 'master'];
+
     for (const cand of candidates) {
       try {
-        execSync(`git rev-parse --verify ${cand}`, { stdio: 'ignore' });
-        baseRef = cand;
+        baseRef = execFileSync('git', ['rev-parse', '--verify', '--end-of-options', `${cand}^{commit}`], {
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'ignore'],
+        }).trim();
         baseRefName = cand;
         break;
       } catch (e) {
