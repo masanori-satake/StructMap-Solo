@@ -105,7 +105,7 @@ suite('Commands & ViewState Integration Test Suite', () => {
       nodeNavigator
     );
 
-    assert.strictEqual(subscriptions.length, 8);
+    assert.strictEqual(subscriptions.length, 9);
   });
 
   test('expandAll expands non-range nodes and skips range nodes', async () => {
