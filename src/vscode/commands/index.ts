@@ -142,7 +142,6 @@ export function registerCommands(
       await viewStateManager.setTreeStyle(nextStyle);
       // Update view description to reflect current style
       updateTreeStyleDescription(nextStyle);
-      treeDataProvider.refresh();
     }),
 
     vscode.commands.registerCommand('structmap-solo.toggleRoot', async () => {

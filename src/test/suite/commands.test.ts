@@ -268,6 +268,52 @@ suite('Commands & ViewState Integration Test Suite', () => {
     }
   });
 
+  test('toggleTreeStyle command updates ViewState and tree style description without refreshing treeDataProvider', async () => {
+    let toggleTreeStyleHandler: (() => Promise<void>) | undefined;
+
+    const originalRegister = vscode.commands.registerCommand;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (vscode.commands as any).registerCommand = (command: string, callback: (...args: any[]) => any) => {
+      if (command === 'structmap-solo.toggleTreeStyle') {
+        toggleTreeStyleHandler = callback;
+      }
+      return { dispose: () => {} };
+    };
+
+    let refreshed = false;
+    const mockTreeDataProvider = {
+      refresh: () => {
+        refreshed = true;
+      },
+    } as unknown as StructMapTreeProvider;
+
+    try {
+      const context = { subscriptions: [] } as unknown as vscode.ExtensionContext;
+      registerCommands(
+        context,
+        mockTreeDataProvider,
+        viewStateManager,
+        structMapService,
+        nodeNavigator
+      );
+
+      assert.ok(toggleTreeStyleHandler, 'toggleTreeStyle command should be registered');
+
+      // Initial treeStyle is 'unicode'
+      assert.strictEqual(viewStateManager.getState().treeStyle, 'unicode');
+
+      await toggleTreeStyleHandler();
+
+      // ViewState updated to 'ascii'
+      assert.strictEqual(viewStateManager.getState().treeStyle, 'ascii');
+      // treeDataProvider.refresh() must NOT be called to avoid view flickering
+      assert.strictEqual(refreshed, false);
+    } finally {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (vscode.commands as any).registerCommand = originalRegister;
+    }
+  });
+
   test('toggleTypes command ignores non-types-supported active editor', async () => {
     let toggleHandler: (() => Promise<void>) | undefined;
 
