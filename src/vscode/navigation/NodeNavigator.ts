@@ -122,11 +122,11 @@ export class NodeNavigator {
       }
 
       // Fallback search within frontmatter block for key regex
+      const keyRegex = new RegExp(`^\\s*['"]?${this.escapeRegExp(node.name)}['"]?\\s*:`);
       for (let i = 1; i < lines.length; i++) {
         if (/^(---|Calculated:|\.\.\.)[ \t]*$/.test(lines[i]) || /^(---|\.\.\.)[ \t]*$/.test(lines[i])) {
           break; // end of frontmatter
         }
-        const keyRegex = new RegExp(`^\\s*['"]?${this.escapeRegExp(node.name)}['"]?\\s*:`);
         if (keyRegex.test(lines[i])) {
           const col = lines[i].indexOf(node.name);
           return new vscode.Position(i, Math.max(0, col));
@@ -149,6 +149,20 @@ export class NodeNavigator {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
+      // Fast path: ATX headings permit 0..3 leading spaces followed by '#'
+      let startIdx = 0;
+      const lineLen = line.length;
+      while (
+        startIdx < lineLen &&
+        startIdx < 4 &&
+        (line.charCodeAt(startIdx) === 32 || line.charCodeAt(startIdx) === 9)
+      ) {
+        startIdx++;
+      }
+      if (startIdx >= lineLen || line.charCodeAt(startIdx) !== 35) {
+        continue;
+      }
+
       const match = line.match(/^ {0,3}(#{1,6})(?:\s+(.*?))?$/);
       if (!match) {
         continue;
@@ -173,7 +187,21 @@ export class NodeNavigator {
 
     // Fallback: search for last heading matching node.name
     for (let i = 0; i < lines.length; i++) {
-      const match = lines[i].match(/^ {0,3}(#{1,6})(?:\s+(.*?))?$/);
+      const line = lines[i];
+      let startIdx = 0;
+      const lineLen = line.length;
+      while (
+        startIdx < lineLen &&
+        startIdx < 4 &&
+        (line.charCodeAt(startIdx) === 32 || line.charCodeAt(startIdx) === 9)
+      ) {
+        startIdx++;
+      }
+      if (startIdx >= lineLen || line.charCodeAt(startIdx) !== 35) {
+        continue;
+      }
+
+      const match = line.match(/^ {0,3}(#{1,6})(?:\s+(.*?))?$/);
       if (match) {
         let rawTitle = match[2] ?? '';
         rawTitle = rawTitle.replace(/(?:\s+#+)+$/, '').trim();
@@ -349,7 +377,16 @@ export class NodeNavigator {
 
         for (let i = currentLine; i < lines.length; i++) {
           const line = lines[i];
-          if (/^\s*$/.test(line) || /^\s*#/.test(line)) {
+          // Fast-path: Skip blank or comment lines without regex overhead
+          let idx = 0;
+          const lineLen = line.length;
+          while (
+            idx < lineLen &&
+            (line.charCodeAt(idx) === 32 || line.charCodeAt(idx) === 9)
+          ) {
+            idx++;
+          }
+          if (idx >= lineLen || line.charCodeAt(idx) === 35) {
             continue;
           }
           const indent = this.getIndent(line);
@@ -391,7 +428,16 @@ export class NodeNavigator {
 
         for (let i = currentLine; i < lines.length; i++) {
           const line = lines[i];
-          if (/^\s*$/.test(line) || /^\s*#/.test(line)) {
+          // Fast-path: Skip blank or comment lines without regex overhead
+          let idx = 0;
+          const lineLen = line.length;
+          while (
+            idx < lineLen &&
+            (line.charCodeAt(idx) === 32 || line.charCodeAt(idx) === 9)
+          ) {
+            idx++;
+          }
+          if (idx >= lineLen || line.charCodeAt(idx) === 35) {
             continue;
           }
           const indent = this.getIndent(line);
@@ -420,8 +466,12 @@ export class NodeNavigator {
   }
 
   private getIndent(line: string): number {
-    const match = line.match(/^(\s*)/);
-    return match ? match[1].length : 0;
+    let i = 0;
+    const len = line.length;
+    while (i < len && (line.charCodeAt(i) === 32 || line.charCodeAt(i) === 9)) {
+      i++;
+    }
+    return i;
   }
 
   private escapeRegExp(str: string): string {
