@@ -70,10 +70,13 @@ classDiagram
 ```mermaid
 graph LR
     subgraph TitleBar ["TreeView TitleBar (view/title: view == structmap-solo.view)"]
+        BtnCopy["Copy Tree (structmap-solo.copyTree)"]
+        BtnCopyVis["Copy Visible Tree (structmap-solo.copyVisibleTree)"]
+        BtnExpand["Expand All (structmap-solo.expandAll)"]
+        BtnCollapse["Collapse All (structmap-solo.collapseAll)"]
         BtnTypes["Toggle Types (structmap-solo.toggleTypes)"]
         BtnStyle["Toggle Tree Style (structmap-solo.toggleTreeStyle)"]
         BtnRoot["Toggle Root (structmap-solo.toggleRoot)"]
-        BtnCopy["Copy Tree (structmap-solo.copyTree)"]
         BtnRefresh["Refresh (structmap-solo.refresh)"]
     end
 

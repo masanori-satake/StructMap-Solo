@@ -15,6 +15,7 @@ StructMap-Solo では、VSCode のイベントリスナー（エディタ切り�
 - [UC-4: 表示オプション変更時 (型表示 / スタイル / ルート表示トグル)](#uc-4-表示オプション変更時-型表示--スタイル--ルート表示トグル)
 - [UC-5: ツリーノードクリックによるエディタジャンプ (jumpToNode)](#uc-5-ツリーノードクリックによるエディタジャンプ-jumptonode)
 - [UC-6: ツリー構造のテキストコピー (copyTree)](#uc-6-ツリー構造のテキストコピー-copytree)
+- [UC-7: 可視ツリー構造のテキストコピー (copyVisibleTree)](#uc-7-可視ツリー構造のテキストコピー-copyvisibletree)
 
 ---
 
@@ -28,6 +29,7 @@ StructMap-Solo では、VSCode のイベントリスナー（エディタ切り�
 | **UC-4** | **表示トグル操作時** | `structmap-solo.toggleTypes` 等 | ViewState 更新 (`set*` メソッド呼び出し & `globalState` 永続化)、`refresh()` 発火 |
 | **UC-5** | **ノードクリック時** | `structmap-solo.jumpToNode` | `nodeNavigator.jumpToNode(editor, node)` による位置特定・カーソル移動 |
 | **UC-6** | **ツリーコピー時** | `structmap-solo.copyTree` | アクティブ文書を取得し `StructMapService` でビルド、`TreeRenderer` で描画しクリップボードへ保存 |
+| **UC-7** | **可視ツリーコピー時**| `structmap-solo.copyVisibleTree` | アクティブ文書をビルド後、`TreeExpansionState` の展開状態から `VisibleTreeProjection` で投影し、展開済みノードのみを描画してクリップボードへ保存 |
 
 ---
 
@@ -224,6 +226,41 @@ sequenceDiagram
     VSM-->>Cmd: ViewState (treeStyle, showTypes, showRoot)
     Cmd->>Ren: render(parseResult.tree, viewState)
     Ren-->>Cmd: 罫線付きツリーテキスト文字列
+    Cmd->>Clip: writeText(treeText)
+    Cmd->>U: 情報メッセージ表示 ("StructMap tree copied to clipboard.")
+```
+
+---
+
+## UC-7: 可視ツリー構造のテキストコピー (copyVisibleTree)
+
+TreeView 上でユーザーが現在展開しているノード（`TreeExpansionState`）のみを抽出・投影し、折りたたまれたノードの子を除外したテキストをクリップボードへ保存する処理です。
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant Cmd as structmap-solo.copyVisibleTree
+    participant Ed as Active TextEditor
+    participant Svc as StructMapService
+    participant Exp as TreeExpansionState
+    participant Proj as VisibleTreeProjection
+    participant VSM as ViewStateManager
+    participant Ren as TreeRenderer
+    participant Clip as vscode.env.clipboard
+
+    U->>Cmd: コマンド実行 (copyVisibleTree)
+    Cmd->>Ed: activeTextEditor.document (fileName, content 取得)
+    Cmd->>Svc: build(fileName, content)
+    Svc-->>Cmd: ParseResult (ParseSuccess)
+    Cmd->>Exp: snapshot()
+    Exp-->>Cmd: ReadonlySet<string> (expandedIds)
+    Cmd->>Proj: project(parseResult.tree, expandedIds)
+    Proj-->>Cmd: StructTree (visibleTree: 可視ノードのみ含む木)
+    Cmd->>VSM: getState()
+    VSM-->>Cmd: ViewState (treeStyle, showTypes, showRoot)
+    Cmd->>Ren: render(visibleTree, viewState)
+    Ren-->>Cmd: 罫線付き可視ツリーテキスト文字列
     Cmd->>Clip: writeText(treeText)
     Cmd->>U: 情報メッセージ表示 ("StructMap tree copied to clipboard.")
 ```
