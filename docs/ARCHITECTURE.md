@@ -94,7 +94,7 @@ graph TD
 | **Navigator** | VSCode | `NodeNavigator` | `StructNode` のパスをもとにアクティブエディタ内の対象位置（Range）を特定し、カーソル移動・ジャンプを実現。 |
 | **ViewState** | VSCode | `ViewStateManager` | 型表示トグル、ルート表示、Unicode/ASCII スタイルなどの表示設定状態の管理・永続化 (`globalState`)。 |
 | **ExpansionState** | VSCode | `TreeExpansionState` | TreeView 上でユーザーが展開/折りたたんだノード ID のメモリ内状態追跡（非永続化）。 |
-| **Projection** | VSCode | `VisibleTreeProjection` | `StructTree` と `TreeExpansionState` のスナップショットをもとに、展開されている可視ノードのみを含む部分ツリーを投影生成。 |
+| **Projection** | VSCode | `VisibleTreeProjection` | `StructTree` と `TreeExpansionState` のスナップショットをもとに、折りたたまれたノード自体は残してその子要素を除外させ、ルートおよび葉ノードを常に残した可視ツリーを投影生成。 |
 | **Commands** | VSCode | `registerCommands` | サイドバーのボタンやコマンドパレットからの操作（コピー、可視ツリーコピー、トグル、リフレッシュ等）のハンドラ登録。 |
 
 ---
