@@ -129,10 +129,15 @@ function isVsixRelevant(filepath) {
 if (checkBump) {
   console.log('Checking if version bump is required...');
   try {
+    const versionBaseRef = process.env.VERSION_BASE_REF;
+    if (/^0{40}$/.test(versionBaseRef || '')) {
+      throw new Error('VERSION_BASE_REF is an all-zero SHA; a valid comparison commit is required.');
+    }
+
     let baseRef = null;
     let baseRefName = '';
 
-    const candidates = [process.env.VERSION_BASE_REF, 'origin/main', 'main', 'origin/master', 'master'].filter(Boolean);
+    const candidates = [versionBaseRef, 'origin/main', 'main', 'origin/master', 'master'].filter(Boolean);
     for (const cand of candidates) {
       try {
         baseRef = execFileSync('git', ['rev-parse', '--verify', '--end-of-options', `${cand}^{commit}`], {
