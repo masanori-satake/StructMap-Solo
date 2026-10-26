@@ -37,6 +37,18 @@ export function updateTypesSupportedContext(
  * @param structMapService Service for parsing document trees.
  * @param nodeNavigator Service for navigating active editor to node positions.
  */
+/**
+ * Helper to retrieve structMap workspace configurations for a given document URI.
+ */
+function getStructMapConfig(documentUri?: vscode.Uri): { maxFileSizeMB: number; maxArrayItems: number } {
+  const config = vscode.workspace?.getConfiguration
+    ? vscode.workspace.getConfiguration('structMap', documentUri)
+    : undefined;
+  const maxFileSizeMB = config ? config.get<number>('maxFileSizeMB', 5) : 5;
+  const maxArrayItems = config ? config.get<number>('maxArrayItems', 50) : 50;
+  return { maxFileSizeMB, maxArrayItems };
+}
+
 export function registerCommands(
   context: vscode.ExtensionContext,
   treeDataProvider: StructMapTreeProvider,
@@ -59,7 +71,8 @@ export function registerCommands(
       }
       const fileName = editor.document.fileName;
       const content = editor.document.getText();
-      const parseResult = structMapService.build(fileName, content);
+      const { maxFileSizeMB, maxArrayItems } = getStructMapConfig(editor.document.uri);
+      const parseResult = structMapService.build(fileName, content, maxFileSizeMB, maxArrayItems);
       if (!isParseSuccess(parseResult)) {
         vscode.window.showWarningMessage(
           vscode.l10n?.t
@@ -91,7 +104,8 @@ export function registerCommands(
       }
       const fileName = editor.document.fileName;
       const content = editor.document.getText();
-      const parseResult = structMapService.build(fileName, content);
+      const { maxFileSizeMB, maxArrayItems } = getStructMapConfig(editor.document.uri);
+      const parseResult = structMapService.build(fileName, content, maxFileSizeMB, maxArrayItems);
       if (!isParseSuccess(parseResult)) {
         vscode.window.showWarningMessage(
           vscode.l10n?.t
@@ -158,12 +172,11 @@ export function registerCommands(
     vscode.commands.registerCommand('structmap-solo.collapseAll', async () => {
       if (treeExpansionState) {
         treeExpansionState.clear();
-        const topItems = (await treeDataProvider.getChildren()) as StructTreeItem[] | undefined;
-        if (topItems) {
-          for (const item of topItems) {
-            if (item.node && item.node.id) {
-              treeExpansionState.expand(item.node.id);
-            }
+        const viewState = viewStateManager.getState();
+        if (viewState.showRoot) {
+          const topItems = (await treeDataProvider.getChildren()) as StructTreeItem[] | undefined;
+          if (topItems && topItems.length > 0 && topItems[0].node && topItems[0].node.id) {
+            treeExpansionState.expand(topItems[0].node.id);
           }
         }
       }

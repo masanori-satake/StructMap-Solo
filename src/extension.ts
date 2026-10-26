@@ -34,12 +34,28 @@ export function activate(context: vscode.ExtensionContext): void {
 
   async function syncInitialExpansionState(): Promise<void> {
     const topItems = (await treeDataProvider.getChildren()) as import('./vscode').StructTreeItem[] | undefined;
-    if (topItems) {
-      for (const item of topItems) {
-        if (item.node && item.node.id) {
-          treeExpansionState.expand(item.node.id);
+    if (!topItems) {
+      return;
+    }
+
+    async function processItem(item: import('./vscode').StructTreeItem): Promise<void> {
+      if (
+        item.collapsibleState === vscode.TreeItemCollapsibleState.Expanded &&
+        item.node &&
+        item.node.id
+      ) {
+        treeExpansionState.expand(item.node.id);
+        const children = (await treeDataProvider.getChildren(item)) as import('./vscode').StructTreeItem[] | undefined;
+        if (children) {
+          for (const child of children) {
+            await processItem(child);
+          }
         }
       }
+    }
+
+    for (const item of topItems) {
+      await processItem(item);
     }
   }
 
