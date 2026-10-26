@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execFileSync, execSync } = require('child_process');
 
 const rootDir = path.resolve(__dirname, '..');
 
@@ -132,11 +132,13 @@ if (checkBump) {
     let baseRef = null;
     let baseRefName = '';
 
-    const candidates = ['origin/main', 'main', 'origin/master', 'master'];
+    const candidates = [process.env.VERSION_BASE_REF, 'origin/main', 'main', 'origin/master', 'master'].filter(Boolean);
     for (const cand of candidates) {
       try {
-        execSync(`git rev-parse --verify ${cand}`, { stdio: 'ignore' });
-        baseRef = cand;
+        baseRef = execFileSync('git', ['rev-parse', '--verify', '--end-of-options', `${cand}^{commit}`], {
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'ignore'],
+        }).trim();
         baseRefName = cand;
         break;
       } catch (e) {

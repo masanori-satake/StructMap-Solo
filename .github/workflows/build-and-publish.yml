@@ -32,6 +32,8 @@ jobs:
         run: npm ci
 
       - name: Check Version Bump and Consistency
+        env:
+          VERSION_BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && github.event.before || '' }}
         run: node scripts/check-version.js --check-bump
 
       - name: Run Lint
