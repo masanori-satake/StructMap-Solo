@@ -208,10 +208,22 @@ export class StructMapTreeProvider implements vscode.TreeDataProvider<StructTree
       const config = vscode.workspace?.getConfiguration
         ? vscode.workspace.getConfiguration('structMap', activeEditor.document.uri)
         : undefined;
+      const configSolo = vscode.workspace?.getConfiguration
+        ? vscode.workspace.getConfiguration('structMapSolo', activeEditor.document.uri)
+        : undefined;
       const maxFileSizeMB = config ? config.get<number>('maxFileSizeMB', 5) : 5;
       const maxArrayItems = config ? config.get<number>('maxArrayItems', 50) : 50;
+      const customMappings =
+        (config ? config.get<Record<string, string>>('customMappings') : undefined) ||
+        (configSolo ? configSolo.get<Record<string, string>>('customMappings') : undefined);
 
-      const parseResult = this.structMapService.build(fileName, content, maxFileSizeMB, maxArrayItems);
+      const parseResult = this.structMapService.build(
+        fileName,
+        content,
+        maxFileSizeMB,
+        maxArrayItems,
+        customMappings
+      );
 
       if (isParseError(parseResult)) {
         const displayLabel = getErrorDisplayLabel(parseResult);

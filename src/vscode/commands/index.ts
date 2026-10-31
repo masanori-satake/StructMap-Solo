@@ -17,9 +17,13 @@ export function updateTypesSupportedContext(
   editor: vscode.TextEditor | undefined,
   structMapService: StructMapService
 ): Thenable<unknown> {
+  const customMappings = editor && editor.document
+    ? (vscode.workspace.getConfiguration('structMap', editor.document.uri).get<Record<string, string>>('customMappings') ||
+       vscode.workspace.getConfiguration('structMapSolo', editor.document.uri).get<Record<string, string>>('customMappings'))
+    : undefined;
   const isSupported =
     editor && editor.document
-      ? structMapService.supportsTypes(editor.document.fileName)
+      ? structMapService.supportsTypes(editor.document.fileName, customMappings)
       : false;
   return vscode.commands.executeCommand(
     'setContext',
@@ -40,13 +44,23 @@ export function updateTypesSupportedContext(
 /**
  * Helper to retrieve structMap workspace configurations for a given document URI.
  */
-function getStructMapConfig(documentUri?: vscode.Uri): { maxFileSizeMB: number; maxArrayItems: number } {
+function getStructMapConfig(documentUri?: vscode.Uri): {
+  maxFileSizeMB: number;
+  maxArrayItems: number;
+  customMappings?: Record<string, string>;
+} {
   const config = vscode.workspace?.getConfiguration
     ? vscode.workspace.getConfiguration('structMap', documentUri)
     : undefined;
+  const configSolo = vscode.workspace?.getConfiguration
+    ? vscode.workspace.getConfiguration('structMapSolo', documentUri)
+    : undefined;
   const maxFileSizeMB = config ? config.get<number>('maxFileSizeMB', 5) : 5;
   const maxArrayItems = config ? config.get<number>('maxArrayItems', 50) : 50;
-  return { maxFileSizeMB, maxArrayItems };
+  const customMappings =
+    (config ? config.get<Record<string, string>>('customMappings') : undefined) ||
+    (configSolo ? configSolo.get<Record<string, string>>('customMappings') : undefined);
+  return { maxFileSizeMB, maxArrayItems, customMappings };
 }
 
 export function registerCommands(
@@ -71,8 +85,8 @@ export function registerCommands(
       }
       const fileName = editor.document.fileName;
       const content = editor.document.getText();
-      const { maxFileSizeMB, maxArrayItems } = getStructMapConfig(editor.document.uri);
-      const parseResult = structMapService.build(fileName, content, maxFileSizeMB, maxArrayItems);
+      const { maxFileSizeMB, maxArrayItems, customMappings } = getStructMapConfig(editor.document.uri);
+      const parseResult = structMapService.build(fileName, content, maxFileSizeMB, maxArrayItems, customMappings);
       if (!isParseSuccess(parseResult)) {
         vscode.window.showWarningMessage(
           vscode.l10n?.t
@@ -191,10 +205,14 @@ export function registerCommands(
 
     vscode.commands.registerCommand('structmap-solo.toggleTypes', async () => {
       const editor = vscode.window.activeTextEditor;
+      const customMappings = editor && editor.document
+        ? (vscode.workspace.getConfiguration('structMap', editor.document.uri).get<Record<string, string>>('customMappings') ||
+           vscode.workspace.getConfiguration('structMapSolo', editor.document.uri).get<Record<string, string>>('customMappings'))
+        : undefined;
       if (
         !editor ||
         !editor.document ||
-        !structMapService.supportsTypes(editor.document.fileName)
+        !structMapService.supportsTypes(editor.document.fileName, customMappings)
       ) {
         return;
       }

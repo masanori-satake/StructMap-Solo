@@ -3,3 +3,4 @@ export * from './errors';
 export * from './parsers';
 export * from './renderers/TreeRenderer';
 export * from './services';
+export * from './utils/mappingResolver';

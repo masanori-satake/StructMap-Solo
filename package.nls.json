@@ -13,5 +13,6 @@
   "config.autoRefresh": "Enable automatic refresh of StructMap view.",
   "config.debounceMs": "Debounce delay for StructMap view updates in milliseconds.",
   "config.maxFileSizeMB": "Maximum file size in megabytes to process.",
-  "config.maxArrayItems": "Maximum number of array items to display directly before chunking into range nodes."
+  "config.maxArrayItems": "Maximum number of array items to display directly before chunking.",
+  "config.customMappings": "Custom glob pattern mappings to parser formats (e.g. { \"*_config.json\": \"json\", \"*.xlf\": \"xml\" })."
 }
