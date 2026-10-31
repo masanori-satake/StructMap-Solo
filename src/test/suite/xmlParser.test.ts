@@ -134,6 +134,30 @@ suite('XmlParser Test Suite', () => {
     assert.strictEqual(emptyNode.children[0].value, 'val');
   });
 
+  test('handles attributes with > inside quotes and non-ASCII tags/attributes', () => {
+    const xml = `
+      <設定:ユーザー 識別子.番号="A > B" 名前="田中">
+        <コード>0123</コード>
+        <フラグ>true</フラグ>
+      </設定:ユーザー>
+    `;
+    const result = xmlParser.parse(xml, 'japanese.xml');
+    assert.ok(isParseSuccess(result));
+    const userNode = result.tree.root.children[0];
+    assert.strictEqual(userNode.name, '設定:ユーザー');
+    assert.strictEqual(userNode.attributes?.['識別子.番号'], 'A > B');
+    assert.strictEqual(userNode.attributes?.['名前'], '田中');
+
+    // "0123" has leading zero, so exact numeric check keeps it as string "0123"
+    const codeNode = userNode.children.find((c) => c.name === 'コード')!;
+    assert.strictEqual(codeNode.value, '0123');
+    assert.strictEqual(codeNode.valueType, 'string');
+
+    const flagNode = userNode.children.find((c) => c.name === 'フラグ')!;
+    assert.strictEqual(flagNode.value, true);
+    assert.strictEqual(flagNode.valueType, 'boolean');
+  });
+
   test('returns ParseError on malformed XML syntax', () => {
     const invalidXml = `
       <root>

@@ -10,8 +10,7 @@ interface XmlElement {
   tag: string;
   attributes: Record<string, string>;
   children: (XmlElement | XmlText)[];
-  line: number;
-  column: number;
+  offset: number;
 }
 
 interface XmlParseInternalError extends Error {
@@ -21,8 +20,6 @@ interface XmlParseInternalError extends Error {
 
 interface XmlText {
   text: string;
-  line: number;
-  column: number;
 }
 
 function isXmlElement(node: XmlElement | XmlText): node is XmlElement {
@@ -30,13 +27,13 @@ function isXmlElement(node: XmlElement | XmlText): node is XmlElement {
 }
 
 /**
- * Calculates 1-based line and column numbers from character index.
+ * Calculates 1-based line and column numbers from character offset.
  */
-function getLineAndCol(
+function getLineAndColFromOffset(
   content: string,
-  index: number
+  offset: number
 ): { line: number; column: number } {
-  const safeIdx = Math.max(0, Math.min(index, content.length));
+  const safeIdx = Math.max(0, Math.min(offset, content.length));
   const textBefore = content.slice(0, safeIdx);
   const lines = textBefore.split('\n');
   const line = lines.length;
@@ -49,7 +46,8 @@ function getLineAndCol(
  */
 function parseAttributes(attrString: string): Record<string, string> {
   const attrs: Record<string, string> = {};
-  const attrRegex = /([a-zA-Z0-9_:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g;
+  // XML Name: [^\s=/>]+ supporting dots, colons, hyphens, and non-ASCII Unicode characters
+  const attrRegex = /([^\s=/>]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gu;
   let match: RegExpExecArray | null;
   while ((match = attrRegex.exec(attrString)) !== null) {
     const key = match[1];
@@ -72,13 +70,24 @@ function decodeXmlEntities(str: string): string {
 }
 
 /**
+ * Checks if a trimmed string represents a finite number whose string form matches exactly.
+ */
+function isExactNumeric(text: string): boolean {
+  const trimmed = text.trim();
+  if (trimmed === '') return false;
+  const num = Number(trimmed);
+  return Number.isFinite(num) && String(num) === trimmed;
+}
+
+/**
  * Infers ValueType from text content for showTypes.
  */
 function inferValueType(text: string): ValueType {
-  if (text === 'true' || text === 'false') {
+  const trimmed = text.trim();
+  if (trimmed === 'true' || trimmed === 'false') {
     return 'boolean';
   }
-  if (!isNaN(Number(text)) && text.trim() !== '') {
+  if (isExactNumeric(trimmed)) {
     return 'number';
   }
   return 'string';
@@ -88,10 +97,11 @@ function inferValueType(text: string): ValueType {
  * Formats primitive value from text content.
  */
 function formatValue(text: string): string | number | boolean {
-  if (text === 'true') return true;
-  if (text === 'false') return false;
-  if (!isNaN(Number(text)) && text.trim() !== '') {
-    return Number(text);
+  const trimmed = text.trim();
+  if (trimmed === 'true') return true;
+  if (trimmed === 'false') return false;
+  if (isExactNumeric(trimmed)) {
+    return Number(trimmed);
   }
   return text;
 }
@@ -174,11 +184,8 @@ export class XmlParser {
         // Trailing text
         const text = content.slice(cursor).trim();
         if (text && stack.length > 0) {
-          const { line, column } = getLineAndCol(content, cursor);
           stack[stack.length - 1].children.push({
-            text: decodeXmlEntities(text),
-            line,
-            column
+            text: decodeXmlEntities(text)
           });
         }
         break;
@@ -188,11 +195,8 @@ export class XmlParser {
         // Text between tags
         const text = content.slice(cursor, nextLt).trim();
         if (text && stack.length > 0) {
-          const { line, column } = getLineAndCol(content, cursor);
           stack[stack.length - 1].children.push({
-            text: decodeXmlEntities(text),
-            line,
-            column
+            text: decodeXmlEntities(text)
           });
         }
       }
@@ -203,7 +207,7 @@ export class XmlParser {
       if (content.startsWith('<?', cursor)) {
         const closeIdx = content.indexOf('?>', cursor);
         if (closeIdx === -1) {
-          const { line, column } = getLineAndCol(content, cursor);
+          const { line, column } = getLineAndColFromOffset(content, cursor);
           const err = new Error('Unclosed XML declaration or processing instruction') as XmlParseInternalError;
           err.line = line;
           err.column = column;
@@ -217,7 +221,7 @@ export class XmlParser {
       if (content.startsWith('<!--', cursor)) {
         const closeIdx = content.indexOf('-->', cursor);
         if (closeIdx === -1) {
-          const { line, column } = getLineAndCol(content, cursor);
+          const { line, column } = getLineAndColFromOffset(content, cursor);
           const err = new Error('Unclosed XML comment') as XmlParseInternalError;
           err.line = line;
           err.column = column;
@@ -231,7 +235,7 @@ export class XmlParser {
       if (content.startsWith('<![CDATA[', cursor)) {
         const closeIdx = content.indexOf(']]>', cursor);
         if (closeIdx === -1) {
-          const { line, column } = getLineAndCol(content, cursor);
+          const { line, column } = getLineAndColFromOffset(content, cursor);
           const err = new Error('Unclosed CDATA section') as XmlParseInternalError;
           err.line = line;
           err.column = column;
@@ -239,11 +243,8 @@ export class XmlParser {
         }
         const cdataText = content.slice(cursor + 9, closeIdx);
         if (stack.length > 0) {
-          const { line, column } = getLineAndCol(content, cursor);
           stack[stack.length - 1].children.push({
-            text: cdataText,
-            line,
-            column
+            text: cdataText
           });
         }
         cursor = closeIdx + 3;
@@ -252,9 +253,9 @@ export class XmlParser {
 
       // Check for DOCTYPE or other <! declarations
       if (content.startsWith('<!', cursor)) {
-        const closeIdx = content.indexOf('>', cursor);
+        const closeIdx = this.findTagClosingBracket(content, cursor);
         if (closeIdx === -1) {
-          const { line, column } = getLineAndCol(content, cursor);
+          const { line, column } = getLineAndColFromOffset(content, cursor);
           const err = new Error('Unclosed XML declaration') as XmlParseInternalError;
           err.line = line;
           err.column = column;
@@ -268,7 +269,7 @@ export class XmlParser {
       if (content.startsWith('</', cursor)) {
         const closeIdx = content.indexOf('>', cursor);
         if (closeIdx === -1) {
-          const { line, column } = getLineAndCol(content, cursor);
+          const { line, column } = getLineAndColFromOffset(content, cursor);
           const err = new Error('Malformed closing tag') as XmlParseInternalError;
           err.line = line;
           err.column = column;
@@ -276,7 +277,7 @@ export class XmlParser {
         }
         const closingTagName = content.slice(cursor + 2, closeIdx).trim();
         if (stack.length === 0) {
-          const { line, column } = getLineAndCol(content, cursor);
+          const { line, column } = getLineAndColFromOffset(content, cursor);
           const err = new Error(`Unexpected closing tag: </${closingTagName}>`) as XmlParseInternalError;
           err.line = line;
           err.column = column;
@@ -284,7 +285,7 @@ export class XmlParser {
         }
         const top = stack.pop()!;
         if (top.tag !== closingTagName) {
-          const { line, column } = getLineAndCol(content, cursor);
+          const { line, column } = getLineAndColFromOffset(content, cursor);
           const err = new Error(
             `Mismatched closing tag: expected </${top.tag}>, found </${closingTagName}>`
           ) as XmlParseInternalError;
@@ -297,9 +298,10 @@ export class XmlParser {
       }
 
       // Opening or self-closing tag: <tag attr="val"> or <tag attr="val" />
-      const closeIdx = content.indexOf('>', cursor);
+      // Ensure we ignore '>' inside attribute quotes
+      const closeIdx = this.findTagClosingBracket(content, cursor);
       if (closeIdx === -1) {
-        const { line, column } = getLineAndCol(content, cursor);
+        const { line, column } = getLineAndColFromOffset(content, cursor);
         const err = new Error('Unclosed tag') as XmlParseInternalError;
         err.line = line;
         err.column = column;
@@ -320,21 +322,19 @@ export class XmlParser {
         ? ''
         : cleanTagContent.slice(spaceIdx + 1);
 
-      if (!tagName || !/^[a-zA-Z0-9_:-]+$/.test(tagName)) {
-        const { line, column } = getLineAndCol(content, cursor);
+      if (!tagName || !/^[^\s/<>=\0]+$/u.test(tagName)) {
+        const { line, column } = getLineAndColFromOffset(content, cursor);
         const err = new Error(`Invalid tag name: <${tagName}>`) as XmlParseInternalError;
         err.line = line;
         err.column = column;
         throw err;
       }
 
-      const { line, column } = getLineAndCol(content, cursor);
       const element: XmlElement = {
         tag: tagName,
         attributes: parseAttributes(attrStr),
         children: [],
-        line,
-        column
+        offset: cursor
       };
 
       if (stack.length > 0) {
@@ -352,13 +352,37 @@ export class XmlParser {
 
     if (stack.length > 0) {
       const unclosed = stack[stack.length - 1];
+      const { line, column } = getLineAndColFromOffset(content, unclosed.offset);
       const err = new Error(`Unclosed tag: <${unclosed.tag}>`) as XmlParseInternalError;
-      err.line = unclosed.line;
-      err.column = unclosed.column;
+      err.line = line;
+      err.column = column;
       throw err;
     }
 
     return rootNodes;
+  }
+
+  /**
+   * Finds the closing bracket '>' of an XML tag, ignoring '>' inside quotes.
+   */
+  private findTagClosingBracket(content: string, startIdx: number): number {
+    let inQuote: string | null = null;
+    const len = content.length;
+    for (let i = startIdx; i < len; i++) {
+      const ch = content[i];
+      if (inQuote !== null) {
+        if (ch === inQuote) {
+          inQuote = null;
+        }
+      } else {
+        if (ch === '"' || ch === "'") {
+          inQuote = ch;
+        } else if (ch === '>') {
+          return i;
+        }
+      }
+    }
+    return -1;
   }
 
   /**

@@ -26,6 +26,14 @@
   "main": "./out/extension.js",
   "l10n": "./l10n",
   "contributes": {
+    "languages": [
+      {
+        "id": "xml",
+        "extensions": [
+          ".xml"
+        ]
+      }
+    ],
     "commands": [
       {
         "command": "structmap-solo.copyTree",

@@ -489,24 +489,41 @@ export class NodeNavigator {
       const key = rawKeys[k];
 
       if (key.startsWith('@')) {
-        // Attribute name: @attr
+        // Attribute name: @attr within the start tag of current element
         const attrName = key.slice(1);
-        const attrRegex = new RegExp(`\\b${this.escapeRegExp(attrName)}\\s*=`);
-        for (let i = currentLine; i < lines.length; i++) {
-          const match = lines[i].match(attrRegex);
+        const attrRegex = new RegExp(`(?<![a-zA-Z0-9_:-])${this.escapeRegExp(attrName)}\\s*=`);
+        let inTag = true;
+
+        for (let i = currentLine; i < lines.length && inTag; i++) {
+          const line = lines[i];
+          const match = line.match(attrRegex);
           if (match && match.index !== undefined) {
             return new vscode.Position(i, match.index);
+          }
+          if (line.includes('>')) {
+            inTag = false;
           }
         }
         return undefined;
       }
 
       if (key === '#text') {
-        // Text node - search for the value on or after currentLine
+        // Text node - search for decoded value or XML escaped value on or after currentLine
         if (node.value !== undefined) {
           const valStr = String(node.value).trim();
+          const escapedVal = this.escapeXmlEntities(valStr);
+
           for (let i = currentLine; i < lines.length; i++) {
-            const idx = lines[i].indexOf(valStr);
+            const line = lines[i];
+            const textOnlyLine = line.replace(/<[^>]+>/g, ' ');
+
+            // Try raw text or XML-escaped text
+            let idx = line.indexOf(valStr);
+            if (idx !== -1 && textOnlyLine.includes(valStr)) {
+              return new vscode.Position(i, idx);
+            }
+
+            idx = line.indexOf(escapedVal);
             if (idx !== -1) {
               return new vscode.Position(i, idx);
             }
@@ -540,6 +557,15 @@ export class NodeNavigator {
     }
 
     return new vscode.Position(currentLine, 0);
+  }
+
+  private escapeXmlEntities(str: string): string {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
   }
 
   private getIndent(line: string): number {
