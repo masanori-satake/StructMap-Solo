@@ -1,6 +1,6 @@
 # StructMap-Solo
 
-[![Version](https://img.shields.io/badge/version-v1.5.1-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-v1.6.0-blue.svg)](package.json)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/masanori-satake/StructMap-Solo)](https://github.com/masanori-satake/StructMap-Solo/releases)
 
 <p align="center">
@@ -37,6 +37,7 @@ StructMap-Solo は、Markdown、JSON、YAML ファイルのドキュメント構
 - **JSON Schema** (`.json` 自動識別、`$ref` インライン展開、循環参照保護、`[Definitions]` 集約)
 - **YAML** (`.yml`, `.yaml`)
 - **XML** (`.xml`)
+- **TOML** (`.toml`)
 - **カスタムマッピング** (settings.json での `structMap.customMappings` による任意の拡張子・プレフィックス・サフィックスの紐付け)
 
 ---
@@ -98,7 +99,7 @@ StructMap-Solo はプライバシーとデータセキュリティを第一に�
 
 将来のリリースに向けて以下の機能拡張を検討・予定しています：
 
-- **TOML Support**: TOML 設定ファイルの構造表示
+- **TOML Support**: TOML 設定ファイルの構造表示（v1.6.0 でサポート完了）
 - **Workspace Mode**: ワークスペース全体または複数ファイルの構造概要一覧表示
 
 ---

@@ -36,6 +36,8 @@ function getErrorDisplayLabel(error: ParseError): string {
       return t('Frontmatter Parse Error');
     case ParseErrorCode.XML_PARSE_ERROR:
       return t('XML Parse Error');
+    case ParseErrorCode.TOML_PARSE_ERROR:
+      return t('TOML Parse Error');
     case ParseErrorCode.UNSUPPORTED_FORMAT:
       return t('Unsupported Format');
     case ParseErrorCode.EMPTY_FILE:
