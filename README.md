@@ -1,13 +1,13 @@
 # StructMap-Solo
 
-[![Version](https://img.shields.io/badge/version-v1.6.0-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-v1.6.1-blue.svg)](package.json)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/masanori-satake/StructMap-Solo)](https://github.com/masanori-satake/StructMap-Solo/releases)
 
 <p align="center">
   <img src="assets/icon.png" width="128" height="128" alt="StructMap-Solo Logo" />
 </p>
 
-StructMap-Solo は、Markdown、JSON、YAML ファイルのドキュメント構造・階層構造をサイドバー（Explorer View）で直感的に可視化する Visual Studio Code 拡張機能です。
+StructMap-Solo は、Markdown、JSON、YAML、XML、TOML、JSON Schema ファイルのドキュメント構造・階層構造をサイドバー（Explorer View）で直感的に可視化する Visual Studio Code 拡張機能です。
 
 ![StructMap View Screenshot](docs/screenshot.png)
 
@@ -76,9 +76,16 @@ users []
 - **Expand All / Collapse All (すべて展開・すべて集約)**: ツリーノードの一括展開・一括集約に対応（※配列要素数が `maxArrayItems` を超える場合の範囲ノード等は自動展開を制限）。
 - **Copy Tree (ツリーコピー)**: 選択したノードまたはツリー全体をテキスト（ASCII または Unicode 罫線）としてクリップボードにコピーします。
 - **Unicode / ASCII スタイル切り替え**: ツリー描画スタイルを Unicode 罫線（`└─`, `├─`）と ASCII 罫線（`` `-- ``, `|--`）でワンタップ切り替え可能です。
-- **Type Mode (型表示トグル)**: JSON/YAML/Frontmatter のデータ型（`string`, `number`, `boolean`, `array`, `object`）の表示/非表示を切り替えられます。
+- **Type Mode (型表示トグル)**: 対応フォーマット（JSON、YAML、XML、TOML、JSON Schema、Frontmatter）のデータ型の表示/非表示を切り替えられます。
 - **Node Navigation (ノードジャンプ)**: ツリー内のノードをクリックすると、エディタの対応する行・位置へ即座にカーソルが移動します。
 - **Auto Refresh (自動更新)**: ドキュメントの編集内容をデバウンス処理付きでリアルタイムに自動追従・再描画します。
+
+---
+
+## 設定とコマンド (Settings & Commands)
+
+- **コマンド**: ツリーコピー、可視ツリーコピー、展開・集約、型表示トグル、ツリースタイル切り替えなどのコマンドは、ツリービューのタイトルバーまたは VSCode のコマンドパレットから実行できます。
+- **設定**: 自動更新（`structMap.autoRefresh`）、デバウンス時間（`structMap.debounceMs`）、最大ファイルサイズ制限（`structMap.maxFileSizeMB`）、配列要素の展開上限（`structMap.maxArrayItems`）、カスタムグロブマッピング（`structMap.customMappings`）は、VSCode の設定エディタ（`Ctrl+,` / `Cmd+,`）から変更できます。
 
 ---
 
@@ -99,7 +106,6 @@ StructMap-Solo はプライバシーとデータセキュリティを第一に�
 
 将来のリリースに向けて以下の機能拡張を検討・予定しています：
 
-- **TOML Support**: TOML 設定ファイルの構造表示（v1.6.0 でサポート完了）
 - **Workspace Mode**: ワークスペース全体または複数ファイルの構造概要一覧表示
 
 ---

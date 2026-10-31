@@ -60,6 +60,9 @@ classDiagram
 | `structMap.debounceMs` | `number` | `500` | 自動更新時のデバウンス時間 (ミリ秒)。入力中の負荷を軽減します。 |
 | `structMap.maxFileSizeMB` | `number` | `5` | パース対象とする最大ファイルサイズ (MB)。超過した場合は `FILE_TOO_LARGE` エラーを表示。 |
 | `structMap.maxArrayItems` | `number` | `50` | 配列要素を個別に表示する最大件数。超過時は Chunking ノード (`[1 .. 50]`) を展開生成。 |
+| `structMap.customMappings` | `object` | `{"*.toml": "toml"}` | ファイル名のグロブパターンとフォーマット（json, yaml, xml, toml, jsonschema, markdown）の紐付け設定。 |
+
+※`structMapSolo.customMappings` も後方互換性のため併せてサポートされています。
 
 ---
 
@@ -92,7 +95,7 @@ graph LR
 - **タイトルバーコマンドの配置・条件**:
   - タイトルバーに表示されるボタン群は `package.json` の `"when": "view == structmap-solo.view"` 条件により `structmap-solo.view` のタイトルバーに配置されます。
 - **`structmap-solo.typesSupported` (Context Key)**:
-  - アクティブエディタが JSON または YAML の場合に `true` がセットされます。
+  - アクティブエディタがデータ型表示に対応しているフォーマット（JSON, YAML, XML, TOML, JSON Schema）の場合、またはカスタムマッピングでこれらに該当する場合に `true` がセットされます。
   - `structmap-solo.toggleTypes` コマンドハンドラ内にて、アクティブ文書がデータ型非対応（Markdown 等）の場合はトグル処理を実行しないようガードします。
 - **TreeView View Description**:
   - `treeView.description` に現在のツリースタイル（例: `Style: Unicode` または `Style: ASCII`）がリアルタイム表示されます。

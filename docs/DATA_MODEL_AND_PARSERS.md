@@ -17,7 +17,7 @@
 
 ## 1. 統一データモデル (StructTree & StructNode)
 
-StructMap-Solo は、任意のドキュメント（Markdown, JSON, YAML）を統一されたツリー構造 `StructTree` に変換して保持・操作します。
+StructMap-Solo は、任意のドキュメント（Markdown, JSON, YAML, XML, TOML, JSON Schema）を統一されたツリー構造 `StructTree` に変換して保持・操作します。
 
 ```mermaid
 classDiagram
@@ -35,6 +35,7 @@ classDiagram
         +any value
         +StructNode[] children
         +boolean isRange
+        +Record attributes
     }
 
     class NodeType {
@@ -59,6 +60,9 @@ classDiagram
         markdown
         json
         yaml
+        xml
+        jsonSchema
+        toml
     }
 
     StructTree "1" --> "1" StructNode : root
@@ -80,6 +84,7 @@ classDiagram
 | `value` | `string \| number \| boolean \| null` | No | `nodeType === 'value'` の場合のスカラー値。TreeView の `description` やホバー表示に利用。 |
 | `children` | `StructNode[]` | Yes | 子ノード要素の配列（子がない場合は空配列 `[]`）。 |
 | `isRange` | `boolean` | No | 配列要素数が `maxArrayItems` を超えた場合に自動生成される範囲ノード（例: 120件の配列で `maxArrayItems = 50` の場合、残りをまとめる `[50 .. 119]`）を示すフラグ。 |
+| `attributes` | `Record<string, string>` | No | XML 要素ノード等の属性キーと値のマップ（`@attr` ノード等の表現に利用）。 |
 
 ---
 
@@ -113,6 +118,8 @@ classDiagram
         JSON_PARSE_ERROR
         YAML_PARSE_ERROR
         FRONTMATTER_PARSE_ERROR
+        XML_PARSE_ERROR
+        TOML_PARSE_ERROR
         UNSUPPORTED_FORMAT
         EMPTY_FILE
         FILE_TOO_LARGE
@@ -134,6 +141,8 @@ classDiagram
 | `JSON_PARSE_ERROR` | `JSON.parse` 構文エラー発生時 | JSON Parse Error |
 | `YAML_PARSE_ERROR` | `js-yaml` 構文エラー発生時 | YAML Parse Error |
 | `FRONTMATTER_PARSE_ERROR` | YAML Frontmatter の構文エラー時 | Frontmatter Parse Error |
+| `XML_PARSE_ERROR` | XML 構文解析エラー発生時 | XML Parse Error |
+| `TOML_PARSE_ERROR` | TOML 構文解析エラー発生時 | TOML Parse Error |
 | `PARSE_ERROR` | 一般的な構造解析エラー発生時 | Parse Error |
 
 ---
@@ -146,9 +155,13 @@ classDiagram
 graph TD
     Service["StructMapService.build()"]
 
-    Service -->|".json"| JP["JsonParser.parse()"]
+    Service -->|".json"| SchemaDetect{"isJsonSchema()"}
+    SchemaDetect -->|No| JP["JsonParser.parse()"]
+    SchemaDetect -->|Yes| JSP["JsonSchemaParser.parse()"]
     Service -->|".yml / .yaml"| YP["YamlParser.parse()"]
     Service -->|".md / .markdown"| MP["MarkdownParser.parse()"]
+    Service -->|".xml"| XP["XmlParser.parse()"]
+    Service -->|".toml"| TP["TomlParser.parse()"]
 
     JP --> Converter["convertObjectToStructTree"]
     YP --> Converter
@@ -157,19 +170,28 @@ graph TD
 
     Converter --> Tree["StructTree (Success)"]
     FP --> Tree
+    XP --> Tree
+    TP --> Tree
+    JSP --> Tree
 ```
 
 ### 各パーサーの概要
 
 1. **`JsonParser`**:
    - `JSON.parse` を実行し、生成された JavaScript オブジェクトを `convertObjectToStructTree` に渡して `StructTree` に変換します。
-2. **`YamlParser`**:
+2. **`JsonSchemaParser`**:
+   - JSON Schema 特有のキーワード（`$schema`, `properties`, `definitions`, `$defs` 等）を解釈し、`$ref` ポインターのインライン展開、循環参照ガード、`[Definitions]` 集約を行います。
+3. **`YamlParser`**:
    - `js-yaml` パッケージの `yaml.load()` を使用してオブジェクト化し、`convertObjectToStructTree` で変換します。
-3. **`MarkdownParser`**:
+4. **`MarkdownParser`**:
    - 行単位でテキストを走査し、`#` の数（H1〜H6）に基づいてスタック構造で階層木をビルドします。
    - 先頭の Frontmatter (YAML) を検出した場合は、`FrontmatterParser` を呼び出して Frontmatter 構造をツリーの先頭ノードに統合します。
-4. **`FrontmatterParser`**:
+5. **`FrontmatterParser`**:
    - `---` で囲まれた Frontmatter 文字列を取り出し、`js-yaml` (`yaml.load()`) を直接使用して解析・オブジェクト化し、その結果を `Frontmatter (YAML)` セクションノードとして挿入します。
+6. **`XmlParser`**:
+   - 外部依存ゼロ（Vanilla JS）の XML パーサー/トークナイザー。タグ属性を保持し、TreeView 上の `@attr` 仮想ノードや `#text` ノードへ決定論的にマッピングします。
+7. **`TomlParser`**:
+   - 外部依存ゼロ（Vanilla TS/JS）の TOML パーサー。テーブル（`[table]`）、テーブル配列（`[[table]]`）、インラインテーブル/配列、各種スカラー値を決定論的に `StructNode` 木へ変換します。
 
 ---
 
@@ -210,11 +232,11 @@ graph TD
 
 ## 6. フォーマット別対応機能対照表
 
-| 機能・特性 | Markdown | JSON | YAML |
-| :--- | :---: | :---: | :---: |
-| **ソースフォーマット識別名** | `markdown` | `json` | `yaml` |
-| **型表示 (Show Types) サポート** | No (見出し構造) | Yes (`object/array/value`) | Yes (`object/array/value`) |
-| **Frontmatter 解析** | Yes (YAML Frontmatter) | N/A | N/A |
-| **配列 Chunking (maxArrayItems)** | N/A | Yes | Yes |
-| **エディタジャンプ (`NodeNavigator`)** | 見出し文字列検索 | JSONポインタ/キー検索 | YAMLキー/インデント検索 |
-| **データ構造の種類** | `section` 中心 | `object` / `array` / `value` | `object` / `array` / `value` |
+| 機能・特性 | Markdown | JSON | YAML | XML | TOML | JSON Schema |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **ソースフォーマット識別名** | `markdown` | `json` | `yaml` | `xml` | `toml` | `jsonSchema` |
+| **型表示 (Show Types) サポート** | No (見出し構造) | Yes (`object/array/value`) | Yes (`object/array/value`) | Yes (`element/attribute/text`) | Yes (`table/array/value`) | Yes (Schema types) |
+| **Frontmatter 解析** | Yes (YAML Frontmatter) | N/A | N/A | N/A | N/A | N/A |
+| **配列 Chunking (maxArrayItems)** | N/A | Yes | Yes | N/A | Yes | Yes |
+| **エディタジャンプ (`NodeNavigator`)** | 見出し文字列検索 | JSONポインタ/キー検索 | YAMLキー/インデント検索 | XMLタグ/属性検索 | TOMLセクション/キー検索 | JSONポインタ/定義検索 |
+| **データ構造の種類** | `section` 中心 | `object` / `array` / `value` | `object` / `array` / `value` | `object` / `value` (`attributes`) | `object` / `array` / `value` | `object` / `array` / `value` |
