@@ -85,7 +85,7 @@ users []
 - **Expand All / Collapse All**: Bulk expand or collapse tree nodes (auto-expansion is safely limited for large arrays exceeding `maxArrayItems`).
 - **Copy Tree**: Copy the entire tree or selected nodes as plain text (ASCII or Unicode branch lines) to your clipboard.
 - **Unicode / ASCII Toggle**: Switch tree drawing styles between Unicode lines (`└─`, `├─`) and ASCII lines (`--`, `|--`) with a single click.
-- **Type Mode Toggle**: Toggle data type visibility for supported formats (JSON, YAML, XML, TOML, JSON Schema, Frontmatter).
+- **Type Mode Toggle**: Toggle data type visibility for supported formats (JSON, YAML, XML, TOML, JSON Schema).
 - **Node Navigation**: Click any node in the tree to instantly jump to the corresponding line and position in the editor.
 - **Auto Refresh**: Debounced real-time automatic re-rendering upon editor changes.
 
@@ -195,7 +195,7 @@ users []
 - **Expand All / Collapse All (すべて展開・すべて集約)**: ツリーノードの一括展開・一括集約に対応（※配列要素数が `maxArrayItems` を超える場合の範囲ノード等は自動展開を制限）。
 - **Copy Tree (ツリーコピー)**: 選択したノードまたはツリー全体をテキスト（ASCII または Unicode 罫線）としてクリップボードにコピーします。
 - **Unicode / ASCII スタイル切り替え**: ツリー描画スタイルを Unicode 罫線（`└─`, `├─`）と ASCII 罫線（`--`, `|--`）でワンタップ切り替え可能です。
-- **Type Mode (型表示トグル)**: 対応フォーマット（JSON、YAML、XML、TOML、JSON Schema、Frontmatter）のデータ型の表示/非表示を切り替えられます。
+- **Type Mode (型表示トグル)**: 対応フォーマット（JSON、YAML、XML、TOML、JSON Schema）のデータ型の表示/非表示を切り替えられます。
 - **Node Navigation (ノードジャンプ)**: ツリー内のノードをクリックすると、エディタの対応する行・位置へ即座にカーソルが移動します。
 - **Auto Refresh (自動更新)**: ドキュメントの編集内容をデバウンス処理付きでリアルタイムに自動追従・再描画します。
 
