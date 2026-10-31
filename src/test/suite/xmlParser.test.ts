@@ -156,13 +156,26 @@ suite('XmlParser Test Suite', () => {
     assert.strictEqual(result.tree.sourceFormat, 'xml');
   });
 
-  test('NodeNavigator finds position of XML tags and attributes', async () => {
+  test('NodeNavigator finds position of XML tags and attributes', () => {
     const navigator = new NodeNavigator();
     const docText = '<root id="123">\n  <item name="foo">Value</item>\n</root>';
-    const doc = await vscode.workspace.openTextDocument({
-      content: docText,
-      language: 'xml'
-    });
+    const lines = docText.split(/\r?\n/);
+    const doc = {
+      fileName: 'doc.xml',
+      languageId: 'xml',
+      getText: () => docText,
+      positionAt: (offset: number) => {
+        let currentOffset = 0;
+        for (let i = 0; i < lines.length; i++) {
+          const lineLen = lines[i].length + 1;
+          if (currentOffset + lineLen > offset) {
+            return new vscode.Position(i, offset - currentOffset);
+          }
+          currentOffset += lineLen;
+        }
+        return new vscode.Position(lines.length - 1, lines[lines.length - 1].length);
+      },
+    } as unknown as vscode.TextDocument;
 
     const rootRes = xmlParser.parse(docText, 'doc.xml');
     assert.ok(isParseSuccess(rootRes));
