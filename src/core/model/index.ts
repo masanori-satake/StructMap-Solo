@@ -24,7 +24,8 @@ export type SourceFormat =
   | 'markdown'
   | 'json'
   | 'yaml'
-  | 'xml';
+  | 'xml'
+  | 'jsonSchema';
 
 /**
  * Represents a single node in the unified document structure tree.

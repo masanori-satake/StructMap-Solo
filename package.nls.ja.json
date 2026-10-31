@@ -13,5 +13,6 @@
   "config.autoRefresh": "StructMap ビューの自動更新を有効にします。",
   "config.debounceMs": "StructMap ビュー更新のデバウンス遅延（ミリ秒）。",
   "config.maxFileSizeMB": "解析処理を行う最大ファイルサイズ（メガバイト）。",
-  "config.maxArrayItems": "範囲ノードに分割する前に直接表示する配列要素の最大数。"
+  "config.maxArrayItems": "範囲ノードに分割する前に直接表示する配列要素の最大数。",
+  "config.customMappings": "パーサーフォーマットへのカスタムグロブパターンマッピング（例: { \"*_config.json\": \"json\", \"*.xlf\": \"xml\" }）。"
 }

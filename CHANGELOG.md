@@ -2,6 +2,16 @@
 
 "StructMap-Solo" 拡張機能のすべての注目すべき変更はこのファイルに記録されます。
 
+## [1.5.0] - 2026-10-31
+
+### 追加 (Added)
+- JSON Schema フォーマットの構造解析およびツリー表示サポートを追加
+- ルートプロパティの `$schema`, `properties`, `definitions`, `$defs` に基づく JSON と JSON Schema の自動識別を実装
+- `$ref` ポインターのインライン展開および参照元メタデータバッジ（`🔗 [Ref: ...]`）の付与に対応
+- 祖先チェーン追跡による循環参照ガード（`[Circular Reference]`）を実装し、無限ループ・スタックオーバーフローを防止
+- `definitions` / `$defs` を専用ルートグループ（`[Definitions]`）へ集約、および `oneOf` などの複合型インデックス展開に対応
+- settings.json での汎用カスタムマッピング設定（`structMap.customMappings`）を追加し、任意のグロブパターン（例: `*_config.json`, `*.xlf`）と各フォーマット（JSON, YAML, XML, Markdown, JSON Schema）の紐付けに対応
+
 ## [1.4.0] - 2026-10-31
 
 ### 追加 (Added)

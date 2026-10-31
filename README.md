@@ -1,6 +1,6 @@
 # StructMap-Solo
 
-[![Version](https://img.shields.io/badge/version-v1.4.0-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-v1.5.0-blue.svg)](package.json)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/masanori-satake/StructMap-Solo)](https://github.com/masanori-satake/StructMap-Solo/releases)
 
 <p align="center">
@@ -34,8 +34,10 @@ StructMap-Solo は、Markdown、JSON、YAML ファイルのドキュメント構
 - **Markdown** (`.md`, `.markdown`)
 - **Markdown + Frontmatter** (YAML Frontmatter 付き Markdown)
 - **JSON** (`.json`)
+- **JSON Schema** (`.json` 自動識別、`$ref` インライン展開、循環参照保護、`[Definitions]` 集約)
 - **YAML** (`.yml`, `.yaml`)
 - **XML** (`.xml`)
+- **カスタムマッピング** (settings.json での `structMap.customMappings` による任意の拡張子・プレフィックス・サフィックスの紐付け)
 
 ---
 

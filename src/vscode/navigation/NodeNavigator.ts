@@ -46,7 +46,13 @@ export class NodeNavigator {
     const fileName = document.fileName.toLowerCase();
     const langId = document.languageId.toLowerCase();
 
-    if (fileName.endsWith('.json') || langId === 'json' || langId === 'jsonc') {
+    if (
+      fileName.endsWith('.json') ||
+      langId === 'json' ||
+      langId === 'jsonc' ||
+      fileName.endsWith('.schema.json') ||
+      node.path.some((p) => p.includes('[Definitions]') || p.includes('[Ref:'))
+    ) {
       return this.findJsonPosition(document, text, node);
     }
 
@@ -235,9 +241,16 @@ export class NodeNavigator {
 
     const targetKeys: string[] = [];
     for (let i = 0; i < rawKeys.length; i++) {
-      const isRange = /^\[\d+\s*\.\.\s*\d+\]$/.test(rawKeys[i]);
+      let keyItem = rawKeys[i];
+      if (keyItem === '[Definitions]') {
+        // May match 'definitions' or '$defs' in text
+        keyItem = text.includes('"$defs"') ? '$defs' : 'definitions';
+      }
+      // Remove any ref badge: 'prop 🔗 [Ref: ...]' -> 'prop'
+      keyItem = keyItem.replace(/\s*🔗\s*\[Ref:\s*[^\]]+\]/, '');
+      const isRange = /^\[\d+\s*\.\.\s*\d+\]$/.test(keyItem);
       if (!isRange || i === rawKeys.length - 1) {
-        targetKeys.push(rawKeys[i]);
+        targetKeys.push(keyItem);
       }
     }
 
