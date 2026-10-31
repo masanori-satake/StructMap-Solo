@@ -1,6 +1,7 @@
 # 新規データフォーマット追加ガイド (Developer Guide)
 
-StructMap-Solo は拡張性を考慮して設計されています。新たなデータフォーマット（例: XML, TOML, CSV 等）を追加する手順を本ドキュメントで解説します。
+StructMap-Solo は拡張性を考慮して設計されています。新たなデータフォーマット（例: CSV, INI 等）を追加する手順を本ドキュメントで解説します。
+（※XML および TOML は現在既にコア機能としてサポートされています。以下は既存の XML パーサー等の実装を参考に拡張を行うためのウォークスルーです）
 
 ---
 
@@ -39,7 +40,7 @@ flowchart TD
 
 ## 2. 実装ステップ詳細
 
-ここでは例として **XML (`.xml`) フォーマット** を新規追加する場合の具体手順を記述します。
+ここでは例として **XML (`.xml`) フォーマット** の実装をモデルケースとした追加手順を記述します。
 
 ### Step 1: SourceFormat 型の追加
 `src/core/model/index.ts` 内の `SourceFormat` 型定義に新しいフォーマット名を追加します。
@@ -49,7 +50,10 @@ export type SourceFormat =
   | 'markdown'
   | 'json'
   | 'yaml'
-  | 'xml'; // 追加
+  | 'xml'
+  | 'jsonSchema'
+  | 'toml'
+  | 'csv'; // 追加例
 ```
 
 ### Step 2: ParseErrorCode の追加 (必要に応じて)

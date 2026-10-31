@@ -2,6 +2,16 @@
 
 "StructMap-Solo" 拡張機能のすべての注目すべき変更はこのファイルに記録されます。
 
+## [1.6.1] - 2026-11-01
+
+### ドキュメント (Documentation)
+- **README.md の更新**:
+  - 対応フォーマットおよび型表示（Type Mode）の説明に XML、TOML、JSON Schema を追加
+  - 設定およびコマンドに関する概要セクションを追加
+  - ロードマップから完了済みの TOML サポート項目を削除
+- **設計ドキュメント (`docs/`) の最新化**:
+  - `docs/ARCHITECTURE.md`, `docs/DATA_MODEL_AND_PARSERS.md`, `docs/VIEWSTATE_AND_CONFIG.md`, `docs/ADDING_NEW_FORMAT.md` において、実装済み機能（XML, TOML, JSON Schema, カスタムマッピング）との記述乖離を解消
+
 ## [1.6.0] - 2026-10-31
 
 ### 追加 (Added)
