@@ -237,6 +237,6 @@ graph TD
 | **ソースフォーマット識別名** | `markdown` | `json` | `yaml` | `xml` | `toml` | `jsonSchema` |
 | **型表示 (Show Types) サポート** | No (見出し構造) | Yes (`object/array/value`) | Yes (`object/array/value`) | Yes (`element/attribute/text`) | Yes (`table/array/value`) | Yes (Schema types) |
 | **Frontmatter 解析** | Yes (YAML Frontmatter) | N/A | N/A | N/A | N/A | N/A |
-| **配列 Chunking (maxArrayItems)** | N/A | Yes | Yes | Yes | Yes | Yes |
+| **配列 Chunking (maxArrayItems)** | N/A | Yes | Yes | N/A | Yes | Yes |
 | **エディタジャンプ (`NodeNavigator`)** | 見出し文字列検索 | JSONポインタ/キー検索 | YAMLキー/インデント検索 | XMLタグ/属性検索 | TOMLセクション/キー検索 | JSONポインタ/定義検索 |
 | **データ構造の種類** | `section` 中心 | `object` / `array` / `value` | `object` / `array` / `value` | `object` / `value` (`attributes`) | `object` / `array` / `value` | `object` / `array` / `value` |

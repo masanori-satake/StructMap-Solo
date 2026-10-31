@@ -77,25 +77,41 @@ export enum ParseErrorCode {
 `src/core/parsers/xml/XmlParser.ts` を作成します。
 パーサークラスは以下の原則を守る必要があります：
 - 例外をスローせず、`ParseResult` (`ParseSuccess` または `ParseError`) を返す。
-- オブジェクト構造の場合は `objectConverter.convertObjectToStructTree` を再利用する。
+- JSON や YAML 等の一般的なキー/バリューまたは配列構造の場合は `objectConverter.convertObjectToStructTree` を再利用可能ですが、XML のように独自の属性・テキスト混在ノード・階層構造を持つ形式の場合は、専用のトークナイザーと AST/ノード変換処理（`tokenizeAndBuildTree`、`convertElementToStructNode`）を実装します。
 
 ```typescript
 import { createParseError, createParseSuccess, ParseErrorCode, ParseResult } from '../../errors';
-import { convertObjectToStructTree } from '../common/objectConverter';
+import { StructNode, StructTree } from '../../model';
 
 export class XmlParser {
-  public parse(content: string, fileName: string, maxArrayItems: number = 50): ParseResult {
+  public parse(content: string, fileName: string = 'root', _maxArrayItems: number = 50): ParseResult {
     try {
-      // 1. XML 文字列を JS オブジェクト/AST にパース
-      const parsedObject = parseXmlToJsObject(content);
+      // 1. トークナイズおよび AST 構築
+      const rootElements = this.tokenizeAndBuildTree(content);
+      if (rootElements.length === 0) {
+        return createParseError(ParseErrorCode.XML_PARSE_ERROR, 'XML Parse Error: No root element found');
+      }
 
-      // 2. 共通コンバーターで StructTree に変換 (配列 chunking 対応)
-      const tree = convertObjectToStructTree(parsedObject, 'xml', fileName, maxArrayItems);
-      return createParseSuccess(tree);
+      // 2. 属性・テキストノードを考慮して StructNode 木へ決定論的に変換
+      const rootNode: StructNode = {
+        id: 'node-root',
+        name: fileName,
+        path: [fileName],
+        nodeType: 'root',
+        children: []
+      };
+
+      for (const el of rootElements) {
+        rootNode.children.push(this.convertElementToStructNode(el, [fileName]));
+      }
+
+      return createParseSuccess({ sourceFormat: 'xml', root: rootNode });
     } catch (err: any) {
       return createParseError(
         ParseErrorCode.XML_PARSE_ERROR,
-        `XML Parse Error: ${err.message || String(err)}`
+        err.message || 'XML Parse Error',
+        err.line,
+        err.column
       );
     }
   }
@@ -153,9 +169,10 @@ export class StructMapService {
 
 ### Step 7: 単体テスト (Unit Test) の作成
 `src/test/core/parsers/XmlParser.test.ts` を作成し、以下の観点をテストします：
-1. 正常系: 正しい構文のファイルが `ParseSuccess` となり正しい `StructTree` が得られるか。
-2. 異常系: 構文エラーのファイルで `ParseError` (`XML_PARSE_ERROR`) が返されるか。
-3. `maxArrayItems` を超える要素で範囲ノード (`isRange`) が正しく生成されるか。
+1. 正常系: 正しい構文のファイルが `ParseSuccess` となり、XML 要素階層・属性（`@attr`）・テキストノード（`#text`）が正しく `StructTree` に変換されるか。
+2. 異常系: 構文エラーのファイル（未終了タグ等）で `ParseError` (`XML_PARSE_ERROR`) が行・列番号付きで返されるか。
+3. 形式固有の仕様（自己終了タグ、CDATA、XMLコメント等）が正常にパースされるか。
+（※JSON や YAML 等で配列 Chunking を利用する場合は、`maxArrayItems` を超える要素で範囲ノード `isRange` が生成されるかも検証します）
 
 ---
 

@@ -84,7 +84,8 @@ users []
 
 ## 設定とコマンド (Settings & Commands)
 
-拡張機能のコマンド（ツリーコピー、展開・集約、型表示トグル等）や各種カスタマイズ設定（自動更新のデバウンス時間、最大ファイルサイズ制限、配列要素の展開上限、カスタムグロブマッピング `structMap.customMappings` 等）は、VSCode のコマンドパレットおよび設定エディタ（または本拡張機能の「機能」タブ）から設定・実行できます。
+- **コマンド**: ツリーコピー、可視ツリーコピー、展開・集約、型表示トグル、ツリースタイル切り替えなどのコマンドは、ツリービューのタイトルバーまたは VSCode のコマンドパレットから実行できます。
+- **設定**: 自動更新（`structMap.autoRefresh`）、デバウンス時間（`structMap.debounceMs`）、最大ファイルサイズ制限（`structMap.maxFileSizeMB`）、配列要素の展開上限（`structMap.maxArrayItems`）、カスタムグロブマッピング（`structMap.customMappings`）は、VSCode の設定エディタ（`Ctrl+,` / `Cmd+,`）から変更できます。
 
 ---
 

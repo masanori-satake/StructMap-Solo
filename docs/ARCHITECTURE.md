@@ -85,7 +85,8 @@ graph TD
 | コンポーネント | レイヤー | 主要なクラス / モジュール | 主な役割・機能 |
 | :--- | :--- | :--- | :--- |
 | **Service** | Core | `StructMapService` | 統一パースエントリポイント。拡張子判定、ファイルサイズ上限チェック、パースルーティングを担当。 |
-| **Parsers** | Core | `JsonParser`, `YamlParser`, `MarkdownParser`, `FrontmatterParser`, `XmlParser`, `TomlParser`, `JsonSchemaParser` | 各フォーマットの文字列を解析し、`StructTree` を生成する。例外をスローせず `ParseResult` を返却。 |
+| **Parsers** | Core | `JsonParser`, `YamlParser`, `MarkdownParser`, `XmlParser`, `TomlParser`, `JsonSchemaParser` | 各フォーマットの文字列を解析し、`StructTree` を生成する。例外をスローせず `ParseResult` を返却。 |
+| **Frontmatter Parser**| Core | `FrontmatterParser` | Markdown 先頭の YAML Frontmatter 文字列を解析し、`StructNode[]` を返却。内部例外は呼び出し元の `MarkdownParser` で捕捉され `ParseResult` へ変換。 |
 | **Common Converter**| Core | `objectConverter` | JS オブジェクトから `StructNode` 木への共通変換ロジック。配列の chunking（範囲ノード `isRange`）に対応。 |
 | **Model** | Core | `StructTree`, `StructNode`, `NodeType`, `ValueType` | 各種ドキュメント構造を表現する統一データ型定義。 |
 | **Errors** | Core | `ParseResult`, `ParseError`, `ParseErrorCode` | 安全なパース結果表現（Result パターン）。 |
