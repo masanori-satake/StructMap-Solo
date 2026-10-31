@@ -72,8 +72,41 @@ suite('JSON Schema Parser & Universal Custom Mappings', () => {
     });
   });
 
-  // 3. 循環参照（Circular Reference）ガードのテスト
-  suite('Circular Reference Guard', () => {
+  // 3. 循環参照（Circular Reference）ガードおよびセキュリティ保護のテスト
+  suite('Circular Reference Guard & Security Protection', () => {
+    test('should safely reject prototype traversal attempts via $ref', () => {
+      const maliciousSchema = {
+        $schema: 'http://json-schema.org/draft-07/schema#',
+        properties: {
+          badProto: {
+            $ref: '#/__proto__',
+          },
+          badConstructor: {
+            $ref: '#/constructor',
+          },
+          badPrototype: {
+            $ref: '#/prototype',
+          },
+          badBuiltIn: {
+            $ref: '#/toString',
+          },
+        },
+      };
+
+      const resolved = resolveSchemaWithCircularGuard(maliciousSchema, maliciousSchema);
+      // Prototype chain lookups should be rejected and not resolve to Object prototype built-ins
+      assert.strictEqual(resolved.properties.badProto.$ref, '#/__proto__');
+      assert.strictEqual(resolved.properties.badProto.properties, undefined);
+      assert.strictEqual(resolved.properties.badConstructor.$ref, '#/constructor');
+      assert.strictEqual(resolved.properties.badPrototype.$ref, '#/prototype');
+      assert.strictEqual(resolved.properties.badBuiltIn.$ref, '#/toString');
+
+      const parsedNode = parseJsonSchema(maliciousSchema, 'schema.json');
+      assert.strictEqual(parsedNode.children.length, 4);
+      assert.strictEqual(parsedNode.children[0].name.includes('#/__proto__'), true);
+      assert.strictEqual(parsedNode.children[0].nodeType, 'value');
+    });
+
     test('should safely guard against circular references without throwing stack overflow', () => {
       const rootSchema = {
         definitions: {

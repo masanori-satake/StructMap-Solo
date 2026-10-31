@@ -2,6 +2,11 @@
 
 "StructMap-Solo" 拡張機能のすべての注目すべき変更はこのファイルに記録されます。
 
+## [1.5.1] - 2026-10-31
+
+### セキュリティ (Security)
+- JSON Schema パーサーの `$ref` ポインター解決（`resolveJsonPointer`）において、`__proto__`, `prototype`, `constructor` 等のプロトタイププロパティへの走査防止および `Object.prototype.hasOwnProperty` による厳格なプロパティ検証を追加し、Prototype Pollution および意図しない組み込みプロパティ走査を防止
+
 ## [1.5.0] - 2026-10-31
 
 ### 追加 (Added)
