@@ -66,11 +66,16 @@ export class NodeNavigator {
       return this.findMarkdownPosition(text, node);
     }
 
-    // Default fallback try markdown then json then yaml
+    if (fileName.endsWith('.xml') || langId === 'xml') {
+      return this.findXmlPosition(text, node);
+    }
+
+    // Default fallback try markdown then json then yaml then xml
     return (
       this.findMarkdownPosition(text, node) ||
       this.findJsonPosition(document, text, node) ||
-      this.findYamlPosition(text, node)
+      this.findYamlPosition(text, node) ||
+      this.findXmlPosition(text, node)
     );
   }
 
@@ -463,6 +468,78 @@ export class NodeNavigator {
     const lineText = lines[currentLine];
     const keyCol = Math.max(0, lineText.indexOf(node.name));
     return new vscode.Position(currentLine, keyCol);
+  }
+
+  /**
+   * Finds position in an XML document.
+   */
+  private findXmlPosition(
+    text: string,
+    node: StructNode
+  ): vscode.Position | undefined {
+    const rawKeys = node.path.slice(1);
+    if (rawKeys.length === 0) {
+      return new vscode.Position(0, 0);
+    }
+
+    const lines = text.split(/\r?\n/);
+    let currentLine = 0;
+
+    for (let k = 0; k < rawKeys.length; k++) {
+      const key = rawKeys[k];
+
+      if (key.startsWith('@')) {
+        // Attribute name: @attr
+        const attrName = key.slice(1);
+        const attrRegex = new RegExp(`\\b${this.escapeRegExp(attrName)}\\s*=`);
+        for (let i = currentLine; i < lines.length; i++) {
+          const match = lines[i].match(attrRegex);
+          if (match && match.index !== undefined) {
+            return new vscode.Position(i, match.index);
+          }
+        }
+        return undefined;
+      }
+
+      if (key === '#text') {
+        // Text node - search for the value on or after currentLine
+        if (node.value !== undefined) {
+          const valStr = String(node.value).trim();
+          for (let i = currentLine; i < lines.length; i++) {
+            const idx = lines[i].indexOf(valStr);
+            if (idx !== -1) {
+              return new vscode.Position(i, idx);
+            }
+          }
+        }
+        return new vscode.Position(currentLine, 0);
+      }
+
+      // Tag name
+      const tagRegex = new RegExp(`<${this.escapeRegExp(key)}(\\s|>|/)`);
+      let foundLine = -1;
+      let foundCol = 0;
+
+      for (let i = currentLine; i < lines.length; i++) {
+        const match = lines[i].match(tagRegex);
+        if (match && match.index !== undefined) {
+          foundLine = i;
+          foundCol = match.index;
+          break;
+        }
+      }
+
+      if (foundLine === -1) {
+        return undefined;
+      }
+
+      currentLine = foundLine;
+      if (k === rawKeys.length - 1) {
+        return new vscode.Position(foundLine, foundCol);
+      }
+    }
+
+    return new vscode.Position(currentLine, 0);
   }
 
   private getIndent(line: string): number {

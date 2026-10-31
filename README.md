@@ -1,6 +1,6 @@
 # StructMap-Solo
 
-[![Version](https://img.shields.io/badge/version-v1.3.1-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-v1.4.0-blue.svg)](package.json)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/masanori-satake/StructMap-Solo)](https://github.com/masanori-satake/StructMap-Solo/releases)
 
 <p align="center">
@@ -35,6 +35,7 @@ StructMap-Solo は、Markdown、JSON、YAML ファイルのドキュメント構
 - **Markdown + Frontmatter** (YAML Frontmatter 付き Markdown)
 - **JSON** (`.json`)
 - **YAML** (`.yml`, `.yaml`)
+- **XML** (`.xml`)
 
 ---
 
@@ -95,10 +96,8 @@ StructMap-Solo はプライバシーとデータセキュリティを第一に�
 
 将来のリリースに向けて以下の機能拡張を検討・予定しています：
 
-- **XML Support**: XML ドキュメントの階層構造パース・可視化
 - **TOML Support**: TOML 設定ファイルの構造表示
 - **Workspace Mode**: ワークスペース全体または複数ファイルの構造概要一覧表示
-- **Copy Visible Tree**: 現在展開されている可視ノードのみのツリーコピー機能
 
 ---
 

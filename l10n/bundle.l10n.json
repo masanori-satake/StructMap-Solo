@@ -4,6 +4,7 @@
   "JSON Parse Error": "JSON Parse Error",
   "YAML Parse Error": "YAML Parse Error",
   "Frontmatter Parse Error": "Frontmatter Parse Error",
+  "XML Parse Error": "XML Parse Error",
   "Unsupported Format": "Unsupported Format",
   "Empty File": "Empty File",
   "Parse Error": "Parse Error",

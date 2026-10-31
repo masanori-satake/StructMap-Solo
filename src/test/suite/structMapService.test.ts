@@ -168,7 +168,7 @@ suite('StructMapService Test Suite', () => {
     }
   });
 
-  test('supportsTypes: Returns true only for JSON and YAML files', () => {
+  test('supportsTypes: Returns true only for JSON, YAML, and XML files', () => {
     // JSON files
     assert.strictEqual(service.supportsTypes('data.json'), true);
     assert.strictEqual(service.supportsTypes('/path/to/data.JSON'), true);
@@ -177,6 +177,10 @@ suite('StructMapService Test Suite', () => {
     assert.strictEqual(service.supportsTypes('config.yaml'), true);
     assert.strictEqual(service.supportsTypes('config.yml'), true);
     assert.strictEqual(service.supportsTypes('CONFIG.YAML'), true);
+
+    // XML files
+    assert.strictEqual(service.supportsTypes('document.xml'), true);
+    assert.strictEqual(service.supportsTypes('/path/to/DATA.XML'), true);
 
     // Markdown files
     assert.strictEqual(service.supportsTypes('README.md'), false);
