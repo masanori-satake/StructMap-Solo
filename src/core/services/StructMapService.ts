@@ -1,5 +1,5 @@
 import { createParseError, ParseErrorCode, ParseResult } from '../errors';
-import { JsonParser, MarkdownParser, YamlParser } from '../parsers';
+import { JsonParser, MarkdownParser, XmlParser, YamlParser } from '../parsers';
 
 /**
  * Service providing a unified entry point to build a StructTree from various file formats.
@@ -8,6 +8,7 @@ export class StructMapService {
   private markdownParser = new MarkdownParser();
   private jsonParser = new JsonParser();
   private yamlParser = new YamlParser();
+  private xmlParser = new XmlParser();
 
   /**
    * Builds a ParseResult (ParseSuccess or ParseError) based on the file extension and content.
@@ -62,6 +63,8 @@ export class StructMapService {
       case '.yml':
       case '.yaml':
         return this.yamlParser.parse(content, fileName, maxArrayItems);
+      case '.xml':
+        return this.xmlParser.parse(content, fileName, maxArrayItems);
       default:
         return createParseError(
           ParseErrorCode.UNSUPPORTED_FORMAT,
@@ -84,7 +87,8 @@ export class StructMapService {
       ext === '.markdown' ||
       ext === '.json' ||
       ext === '.yml' ||
-      ext === '.yaml'
+      ext === '.yaml' ||
+      ext === '.xml'
     );
   }
 
@@ -92,13 +96,13 @@ export class StructMapService {
    * Determines whether the specified file format supports type information display.
    *
    * @param fileName Name or path of the file.
-   * @returns True if the file format supports types (e.g. JSON, YAML), false otherwise (e.g. Markdown, unsupported).
+   * @returns True if the file format supports types (e.g. JSON, YAML, XML), false otherwise (e.g. Markdown, unsupported).
    */
   public supportsTypes(fileName?: string): boolean {
     if (!fileName) {
       return false;
     }
     const ext = this.getFileExtension(fileName);
-    return ext === '.json' || ext === '.yml' || ext === '.yaml';
+    return ext === '.json' || ext === '.yml' || ext === '.yaml' || ext === '.xml';
   }
 }

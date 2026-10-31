@@ -66,11 +66,16 @@ export class NodeNavigator {
       return this.findMarkdownPosition(text, node);
     }
 
-    // Default fallback try markdown then json then yaml
+    if (fileName.endsWith('.xml') || langId === 'xml') {
+      return this.findXmlPosition(text, node);
+    }
+
+    // Default fallback try markdown then json then yaml then xml
     return (
       this.findMarkdownPosition(text, node) ||
       this.findJsonPosition(document, text, node) ||
-      this.findYamlPosition(text, node)
+      this.findYamlPosition(text, node) ||
+      this.findXmlPosition(text, node)
     );
   }
 
@@ -463,6 +468,104 @@ export class NodeNavigator {
     const lineText = lines[currentLine];
     const keyCol = Math.max(0, lineText.indexOf(node.name));
     return new vscode.Position(currentLine, keyCol);
+  }
+
+  /**
+   * Finds position in an XML document.
+   */
+  private findXmlPosition(
+    text: string,
+    node: StructNode
+  ): vscode.Position | undefined {
+    const rawKeys = node.path.slice(1);
+    if (rawKeys.length === 0) {
+      return new vscode.Position(0, 0);
+    }
+
+    const lines = text.split(/\r?\n/);
+    let currentLine = 0;
+
+    for (let k = 0; k < rawKeys.length; k++) {
+      const key = rawKeys[k];
+
+      if (key.startsWith('@')) {
+        // Attribute name: @attr within the start tag of current element
+        const attrName = key.slice(1);
+        const attrRegex = new RegExp(`(?<![a-zA-Z0-9_:-])${this.escapeRegExp(attrName)}\\s*=`);
+        let inTag = true;
+
+        for (let i = currentLine; i < lines.length && inTag; i++) {
+          const line = lines[i];
+          const match = line.match(attrRegex);
+          if (match && match.index !== undefined) {
+            return new vscode.Position(i, match.index);
+          }
+          if (line.includes('>')) {
+            inTag = false;
+          }
+        }
+        return undefined;
+      }
+
+      if (key === '#text') {
+        // Text node - search for decoded value or XML escaped value on or after currentLine
+        if (node.value !== undefined) {
+          const valStr = String(node.value).trim();
+          const escapedVal = this.escapeXmlEntities(valStr);
+
+          for (let i = currentLine; i < lines.length; i++) {
+            const line = lines[i];
+            const textOnlyLine = line.replace(/<[^>]+>/g, ' ');
+
+            // Try raw text or XML-escaped text
+            let idx = line.indexOf(valStr);
+            if (idx !== -1 && textOnlyLine.includes(valStr)) {
+              return new vscode.Position(i, idx);
+            }
+
+            idx = line.indexOf(escapedVal);
+            if (idx !== -1) {
+              return new vscode.Position(i, idx);
+            }
+          }
+        }
+        return new vscode.Position(currentLine, 0);
+      }
+
+      // Tag name
+      const tagRegex = new RegExp(`<${this.escapeRegExp(key)}(\\s|>|/)`);
+      let foundLine = -1;
+      let foundCol = 0;
+
+      for (let i = currentLine; i < lines.length; i++) {
+        const match = lines[i].match(tagRegex);
+        if (match && match.index !== undefined) {
+          foundLine = i;
+          foundCol = match.index;
+          break;
+        }
+      }
+
+      if (foundLine === -1) {
+        return undefined;
+      }
+
+      currentLine = foundLine;
+      if (k === rawKeys.length - 1) {
+        return new vscode.Position(foundLine, foundCol);
+      }
+    }
+
+    return new vscode.Position(currentLine, 0);
+  }
+
+  private escapeXmlEntities(str: string): string {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
   }
 
   private getIndent(line: string): number {

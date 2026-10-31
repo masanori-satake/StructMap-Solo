@@ -23,7 +23,8 @@ export type ValueType =
 export type SourceFormat =
   | 'markdown'
   | 'json'
-  | 'yaml';
+  | 'yaml'
+  | 'xml';
 
 /**
  * Represents a single node in the unified document structure tree.
@@ -45,6 +46,8 @@ export interface StructNode {
   children: StructNode[];
   /** Optional flag indicating if the node is an array index range node (e.g. [1 .. 999]). */
   isRange?: boolean;
+  /** Optional map of XML attributes for element nodes. */
+  attributes?: Record<string, string>;
 }
 
 /**
