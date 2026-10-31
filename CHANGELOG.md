@@ -2,6 +2,17 @@
 
 "StructMap-Solo" 拡張機能のすべての注目すべき変更はこのファイルに記録されます。
 
+## [1.6.0] - 2026-10-31
+
+### 追加 (Added)
+- **TOML フォーマットサポート**:
+  - 外部依存ゼロ（Vanilla TS/JS）の安全で決定論的な TOML パーサー（`TomlParser`, `parseTomlToStructNode`）を実装
+  - テーブル（`[table]`）、ネストしたテーブル、テーブルの配列（`[[table]]`）、インラインテーブル、インライン配列に対応
+  - `NodeNavigator` による TOML セクションおよびキー位置へのジャンプに対応
+- **カスタムマッピング（settings.json）連携**:
+  - `structMap.customMappings` および `structMapSolo.customMappings` のデフォルト設定に `"*.toml": "toml"` を統合
+  - `StructMapService` での TOML 自動拡張子・カスタムマッピングルーティングおよび型表示（`supportsTypes`）対応
+
 ## [1.5.1] - 2026-10-31
 
 ### セキュリティ (Security)

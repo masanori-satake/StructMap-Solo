@@ -76,12 +76,17 @@ export class NodeNavigator {
       return this.findXmlPosition(text, node);
     }
 
-    // Default fallback try markdown then json then yaml then xml
+    if (fileName.endsWith('.toml') || langId === 'toml') {
+      return this.findTomlPosition(text, node);
+    }
+
+    // Default fallback try markdown then json then yaml then xml then toml
     return (
       this.findMarkdownPosition(text, node) ||
       this.findJsonPosition(document, text, node) ||
       this.findYamlPosition(text, node) ||
-      this.findXmlPosition(text, node)
+      this.findXmlPosition(text, node) ||
+      this.findTomlPosition(text, node)
     );
   }
 
@@ -566,6 +571,98 @@ export class NodeNavigator {
       currentLine = foundLine;
       if (k === rawKeys.length - 1) {
         return new vscode.Position(foundLine, foundCol);
+      }
+    }
+
+    return new vscode.Position(currentLine, 0);
+  }
+
+  /**
+   * Finds position in a TOML document.
+   */
+  private findTomlPosition(
+    text: string,
+    node: StructNode
+  ): vscode.Position | undefined {
+    const rawKeys = node.path.slice(1);
+    if (rawKeys.length === 0) {
+      return new vscode.Position(0, 0);
+    }
+
+    const lines = text.split(/\r?\n/);
+    let currentLine = 0;
+
+    // Filter out range markers
+    const targetKeys: string[] = [];
+    for (let i = 0; i < rawKeys.length; i++) {
+      const isRange = /^\[\d+\s*\.\.\s*\d+\]$/.test(rawKeys[i]);
+      if (!isRange || i === rawKeys.length - 1) {
+        targetKeys.push(rawKeys[i]);
+      }
+    }
+
+    for (let k = 0; k < targetKeys.length; k++) {
+      const key = targetKeys[k];
+      const isArrayItem = /^\[\d+\]$/.test(key);
+
+      if (isArrayItem) {
+        // Table in Array of Tables [[table]]
+        const targetIdx = parseInt(key.slice(1, -1), 10);
+        let foundIdx = -1;
+        let foundLine = -1;
+        const parentKey = k > 0 ? targetKeys[k - 1] : '';
+        const aotRegex = parentKey
+          ? new RegExp(`^\\s*\\[\\[\\s*(?:.*\\.)?${this.escapeRegExp(parentKey)}\\s*\\]\\]`)
+          : /^\s*\[\[.*\]\]/;
+
+        for (let i = currentLine; i < lines.length; i++) {
+          if (aotRegex.test(lines[i])) {
+            foundIdx++;
+            if (foundIdx === targetIdx) {
+              foundLine = i;
+              break;
+            }
+          }
+        }
+
+        if (foundLine !== -1) {
+          currentLine = foundLine;
+          continue;
+        }
+      }
+
+      // 1. Check for Table header: [key] or [[key]]
+      const tableHeaderRegex = new RegExp(`^\\s*\\[\\[?\\s*(?:.*\\.)?${this.escapeRegExp(key)}\\s*\\]?\\]`);
+      let foundLine = -1;
+      let foundCol = 0;
+
+      for (let i = currentLine; i < lines.length; i++) {
+        const line = lines[i];
+        if (tableHeaderRegex.test(line)) {
+          foundLine = i;
+          foundCol = Math.max(0, line.indexOf(key));
+          break;
+        }
+      }
+
+      if (foundLine !== -1 && k === targetKeys.length - 1) {
+        return new vscode.Position(foundLine, foundCol);
+      }
+
+      if (foundLine !== -1) {
+        currentLine = foundLine;
+        continue;
+      }
+
+      // 2. Check for Key-value pair: key = ...
+      const kvRegex = new RegExp(`^\\s*['"]?${this.escapeRegExp(key)}['"]?\\s*=`);
+      for (let i = currentLine; i < lines.length; i++) {
+        const line = lines[i];
+        const match = line.match(kvRegex);
+        if (match) {
+          const keyCol = Math.max(0, line.indexOf(key));
+          return new vscode.Position(i, keyCol);
+        }
       }
     }
 

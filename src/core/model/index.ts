@@ -25,7 +25,8 @@ export type SourceFormat =
   | 'json'
   | 'yaml'
   | 'xml'
-  | 'jsonSchema';
+  | 'jsonSchema'
+  | 'toml';
 
 /**
  * Represents a single node in the unified document structure tree.

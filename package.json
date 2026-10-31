@@ -2,7 +2,7 @@
   "name": "structmap-solo",
   "displayName": "StructMap-Solo",
   "description": "%extension.description%",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "icon": "assets/icon.png",
   "publisher": "masanori-satake",
   "repository": {
@@ -21,7 +21,8 @@
     "onLanguage:markdown",
     "onLanguage:json",
     "onLanguage:yaml",
-    "onLanguage:xml"
+    "onLanguage:xml",
+    "onLanguage:toml"
   ],
   "main": "./out/extension.js",
   "l10n": "./l10n",
@@ -31,6 +32,12 @@
         "id": "xml",
         "extensions": [
           ".xml"
+        ]
+      },
+      {
+        "id": "toml",
+        "extensions": [
+          ".toml"
         ]
       }
     ],
@@ -164,7 +171,9 @@
         },
         "structMap.customMappings": {
           "type": "object",
-          "default": {},
+          "default": {
+            "*.toml": "toml"
+          },
           "description": "%config.customMappings%",
           "additionalProperties": {
             "type": "string"
@@ -172,7 +181,9 @@
         },
         "structMapSolo.customMappings": {
           "type": "object",
-          "default": {},
+          "default": {
+            "*.toml": "toml"
+          },
           "description": "%config.customMappings%",
           "additionalProperties": {
             "type": "string"

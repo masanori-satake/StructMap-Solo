@@ -4,6 +4,7 @@ import {
   JsonParser,
   JsonSchemaParser,
   MarkdownParser,
+  TomlParser,
   XmlParser,
   YamlParser,
 } from '../parsers';
@@ -18,6 +19,7 @@ export class StructMapService {
   private jsonSchemaParser = new JsonSchemaParser();
   private yamlParser = new YamlParser();
   private xmlParser = new XmlParser();
+  private tomlParser = new TomlParser();
 
   /**
    * Builds a ParseResult (ParseSuccess or ParseError) based on the file extension, custom mappings, and content.
@@ -84,6 +86,8 @@ export class StructMapService {
           return this.yamlParser.parse(content, fileName, maxArrayItems);
         case 'xml':
           return this.xmlParser.parse(content, fileName, maxArrayItems);
+        case 'toml':
+          return this.tomlParser.parse(content, fileName, maxArrayItems);
         default:
           return createParseError(
             ParseErrorCode.UNSUPPORTED_FORMAT,
@@ -103,6 +107,8 @@ export class StructMapService {
         return this.yamlParser.parse(content, fileName, maxArrayItems);
       case '.xml':
         return this.xmlParser.parse(content, fileName, maxArrayItems);
+      case '.toml':
+        return this.tomlParser.parse(content, fileName, maxArrayItems);
       default:
         return createParseError(
           ParseErrorCode.UNSUPPORTED_FORMAT,
@@ -146,7 +152,8 @@ export class StructMapService {
       ext === '.json' ||
       ext === '.yml' ||
       ext === '.yaml' ||
-      ext === '.xml'
+      ext === '.xml' ||
+      ext === '.toml'
     );
   }
 
@@ -168,6 +175,7 @@ export class StructMapService {
         fmt === 'yaml' ||
         fmt === 'yml' ||
         fmt === 'xml' ||
+        fmt === 'toml' ||
         fmt === 'jsonschema' ||
         fmt === 'schema' ||
         fmt === 'json-schema'
@@ -175,6 +183,6 @@ export class StructMapService {
     }
 
     const ext = this.getFileExtension(fileName);
-    return ext === '.json' || ext === '.yml' || ext === '.yaml' || ext === '.xml';
+    return ext === '.json' || ext === '.yml' || ext === '.yaml' || ext === '.xml' || ext === '.toml';
   }
 }
