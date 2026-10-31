@@ -44,7 +44,15 @@ function resolveJsonPointer(rootSchema: any, ref: string): any {
   const parts = ref.slice(2).split('/').map((p) => p.replace(/~1/g, '/').replace(/~0/g, '~'));
   let current = rootSchema;
   for (const part of parts) {
-    if (current && typeof current === 'object' && part in current) {
+    // Security: Prevent Prototype Pollution and traversing Object prototype built-ins
+    if (part === '__proto__' || part === 'prototype' || part === 'constructor') {
+      return undefined;
+    }
+    if (
+      current &&
+      typeof current === 'object' &&
+      Object.prototype.hasOwnProperty.call(current, part)
+    ) {
       current = current[part];
     } else {
       return undefined;
