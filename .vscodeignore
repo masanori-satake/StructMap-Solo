@@ -1,15 +1,31 @@
+# 開発環境・テスト (Development & test)
 .vscode/**
 .vscode-test/**
 .vscode-test.mjs
-.github/**
-.pre-commit-config.yaml
-.pre-commit-ci.yaml
-src/**
+__tests__/**
 out/test/**
-scripts/**
-docs/**
+
+# ソース・ビルド設定 (Sources & build config)
+src/**
+**/*.map
 tsconfig.json
 .eslintrc.js
+
+# CI・リポジトリ管理 (CI & repository management)
 .git/**
+.github/**
 .gitignore
+.pre-commit-config.yaml
+.pre-commit-ci.yaml
+scripts/**
+docs/**
 *.vsix
+
+# AI エージェント関連 (AI agent files)
+AGENTS.md
+.agents/**
+.jules/**
+.kilo/**
+
+# アイコンの元データ（パッケージには PNG のみ同梱） (Icon source; only PNG is packaged)
+assets/icon.svg

@@ -2,6 +2,15 @@
 
 "StructMap-Solo" 拡張機能のすべての注目すべき変更はこのファイルに記録されます。
 
+## [1.7.1] - 2026-11-01
+
+### 修正 (Fixed)
+- **VSIX パッケージから不要なファイルを除外**:
+  - `.vscodeignore` を見直し、テストコード（`__tests__/`）、ソースマップ（`*.map`）、AI エージェント関連ファイル（`AGENTS.md`、`.jules/`、`.agents/`、`.kilo/`）、アイコンの元データ（`assets/icon.svg`）を同梱しないよう変更
+- **開発用依存関係の脆弱性を修正**:
+  - `npm audit fix` により `@azure/msal-node` / `@azure/identity`（`@vscode/vsce` 経由、high）を修正版へ更新
+  - 拡張機能本体の動作に影響する依存関係の変更はなし
+
 ## [1.7.0] - 2026-11-01
 
 ### 変更 (Changed)
