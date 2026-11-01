@@ -2,6 +2,21 @@
 
 "StructMap-Solo" 拡張機能のすべての注目すべき変更はこのファイルに記録されます。
 
+## [1.7.2] - 2026-11-01
+
+### 変更 (Changed)
+- **README.md の構成を MeetDock-Solo と統一**:
+  - バッジを Version / Marketplace / Open VSX / GitHub Release の4種に揃え、バッジ直下のロゴ画像を削除
+  - 目次、インストール/アップデート方法、使い方、コマンド一覧表、設定一覧表、動作要件、開発者向けドキュメントの各セクションを追加
+  - 見出しに絵文字を付与し、日本語側の見出しを日本語のみに統一
+  - スクリーンショットを日本語セクションにも掲載
+- **言語切り替えリンクのアンカーを修正**:
+  - `<a name="...">` を `<a id="...">` に変更し、アンカー名を ASCII（`english` / `japanese`）に変更
+  - 目次の各見出しにも ASCII の ID（`en-*` / `ja-*`）を付与し、目次のリンク先を変更
+- **README のアンカーチェックスクリプトを追加**:
+  - `scripts/check-readme-anchors.js` を追加し、`##` / `###` 見出しへの ID 付け忘れ、目次リンク先の不一致、ID の重複を検出
+  - `npm run lint`（CI）および pre-commit フック（`scripts/run-pre-commit-check.sh`）から実行
+
 ## [1.7.1] - 2026-11-01
 
 ### 修正 (Fixed)
