@@ -22,6 +22,7 @@ As documents and configuration files grow larger and more complex, understanding
 
 ---
 
+<a id="en-toc"></a>
 ### 📑 Table of Contents
 
 - [💡 Key Features](#en-key-features)
@@ -233,6 +234,7 @@ All parsing and rendering occur locally. There is no telemetry, no cloud service
 
 ---
 
+<a id="ja-toc"></a>
 ### 📑 目次
 
 - [💡 主な機能](#ja-key-features)
