@@ -1,8 +1,8 @@
 # StructMap-Solo アーキテクチャ概要
 
-StructMap-Solo は、VSCode 上でドキュメントや設定ファイル（Markdown, JSON, YAML, XML, TOML, JSON Schema）の階層構造・アウトラインをローカル環境で高速かつ正確に可視化する拡張機能です。
+StructMap-Solo は、VSCode 上でドキュメントや設定ファイル（Markdown, JSON, YAML, XML, TOML, JSON Schema）の階層構造をローカルで可視化する拡張機能です。
 
-本書では、StructMap-Solo の全体構造、レイヤー分離設計、各コンポーネントの役割分担、および設計思想について解説します。
+本書では、StructMap-Solo の全体構成、レイヤー設計、各コンポーネントの役割、設計思想を解説します。
 
 ---
 
