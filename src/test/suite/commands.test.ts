@@ -396,4 +396,87 @@ suite('Commands & ViewState Integration Test Suite', () => {
       (vscode.commands as any).registerCommand = originalRegister;
     }
   });
+
+  test('copyTree and copyVisibleTree both pass structMap.customMappings to the parser', async () => {
+    const handlers = new Map<string, () => Promise<void>>();
+    const customMappings = { '*.custom': 'json' };
+    const buildCalls: Array<{ fileName: string; customMappings?: Record<string, string> }> = [];
+
+    const originalRegister = vscode.commands.registerCommand;
+    const originalGetConfiguration = vscode.workspace.getConfiguration;
+    const originalBuild = structMapService.build.bind(structMapService);
+    const originalActiveTextEditorDescriptor = Object.getOwnPropertyDescriptor(
+      vscode.window,
+      'activeTextEditor'
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (vscode.commands as any).registerCommand = (command: string, callback: (...args: any[]) => any) => {
+      handlers.set(command, callback);
+      return { dispose: () => {} };
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (vscode.workspace as any).getConfiguration = (section?: string) => ({
+      get: <T>(key: string, defaultValue?: T): T | undefined => {
+        if (section === 'structMap' && key === 'customMappings') {
+          return customMappings as unknown as T;
+        }
+        return defaultValue;
+      },
+    });
+    structMapService.build = (
+      fileName: string,
+      content: string,
+      maxFileSizeMB?: number,
+      maxArrayItems?: number,
+      mappings?: Record<string, string>
+    ) => {
+      buildCalls.push({ fileName, customMappings: mappings });
+      return originalBuild(fileName, content, maxFileSizeMB, maxArrayItems, mappings);
+    };
+    Object.defineProperty(vscode.window, 'activeTextEditor', {
+      value: {
+        document: {
+          fileName: 'settings.custom',
+          uri: vscode.Uri.file('/tmp/settings.custom'),
+          getText: () => '{"name": "test"}',
+        } as unknown as vscode.TextDocument,
+      } as vscode.TextEditor,
+      configurable: true,
+    });
+
+    try {
+      const context = { subscriptions: [] } as unknown as vscode.ExtensionContext;
+      registerCommands(
+        context,
+        treeDataProvider,
+        viewStateManager,
+        structMapService,
+        nodeNavigator
+      );
+
+      const copyTree = handlers.get('structmap-solo.copyTree');
+      const copyVisibleTree = handlers.get('structmap-solo.copyVisibleTree');
+      assert.ok(copyTree, 'copyTree command should be registered');
+      assert.ok(copyVisibleTree, 'copyVisibleTree command should be registered');
+
+      await copyTree();
+      await copyVisibleTree();
+
+      assert.strictEqual(buildCalls.length, 2);
+      assert.deepStrictEqual(buildCalls[0].customMappings, customMappings);
+      assert.deepStrictEqual(buildCalls[1].customMappings, customMappings);
+    } finally {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (vscode.commands as any).registerCommand = originalRegister;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (vscode.workspace as any).getConfiguration = originalGetConfiguration;
+      structMapService.build = originalBuild;
+      if (originalActiveTextEditorDescriptor) {
+        Object.defineProperty(vscode.window, 'activeTextEditor', originalActiveTextEditorDescriptor);
+      } else {
+        Reflect.deleteProperty(vscode.window, 'activeTextEditor');
+      }
+    }
+  });
 });
