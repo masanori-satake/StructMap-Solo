@@ -24,20 +24,21 @@ As documents and configuration files grow larger and more complex, understanding
 
 ### 📑 Table of Contents
 
-- [💡 Key Features](#-key-features)
-- [📂 Supported Formats](#-supported-formats)
-- [📦 Installation & Updates](#-installation--updates)
-- [🚀 How to Use](#-how-to-use)
-- [⌨️ Commands](#️-commands)
-- [🔧 Settings](#-settings)
-- [📋 Requirements](#-requirements)
-- [🔒 Data Storage & Privacy](#-data-storage--privacy)
-- [🧭 Roadmap](#-roadmap)
-- [🛠️ Developer Documentation](#️-developer-documentation)
-- [📄 License](#-license)
+- [💡 Key Features](#en-key-features)
+- [📂 Supported Formats](#en-supported-formats)
+- [📦 Installation & Updates](#en-installation)
+- [🚀 How to Use](#en-how-to-use)
+- [⌨️ Commands](#en-commands)
+- [🔧 Settings](#en-settings)
+- [📋 Requirements](#en-requirements)
+- [🔒 Data Storage & Privacy](#en-privacy)
+- [🧭 Roadmap](#en-roadmap)
+- [🛠️ Developer Documentation](#en-developer-docs)
+- [📄 License](#en-license)
 
 ---
 
+<a id="en-key-features"></a>
 ### 💡 Key Features
 
 1. **Real-Time Structure Visualization**
@@ -51,7 +52,7 @@ As documents and configuration files grow larger and more complex, understanding
    - Bulk expand or collapse tree nodes (auto-expansion is safely limited for large arrays exceeding `maxArrayItems`).
 
 4. **Copy Tree as Text**
-   - Copy the entire tree, the visible (expanded) tree, or selected nodes as plain text to your clipboard.
+   - Copy the entire tree or the visible (expanded) tree as plain text to your clipboard.
    - Switch tree drawing styles between Unicode lines (`└─`, `├─`) and ASCII lines (`--`, `|--`) with a single click.
 
 5. **Display Toggles**
@@ -64,6 +65,7 @@ As documents and configuration files grow larger and more complex, understanding
 
 ---
 
+<a id="en-supported-formats"></a>
 ### 📂 Supported Formats
 
 - **Markdown** (`.md`, `.markdown`)
@@ -77,6 +79,7 @@ As documents and configuration files grow larger and more complex, understanding
 
 ---
 
+<a id="en-installation"></a>
 ### 📦 Installation & Updates
 
 #### Method 1: Install from Visual Studio Marketplace (Recommended)
@@ -108,6 +111,7 @@ For VSCodium, Gitpod, Eclipse Theia, or environments configured with Open VSX:
 
 ---
 
+<a id="en-how-to-use"></a>
 ### 🚀 How to Use
 
 #### 1. Viewing the Structure
@@ -147,11 +151,12 @@ users []
 
 ---
 
+<a id="en-commands"></a>
 ### ⌨️ Commands
 
 | Command Name | Command ID | Description |
 | :--- | :--- | :--- |
-| **Copy Tree** | `structmap-solo.copyTree` | Copy the entire tree (or selected nodes) as text |
+| **Copy Tree** | `structmap-solo.copyTree` | Copy the entire tree as text |
 | **Copy Visible Tree** | `structmap-solo.copyVisibleTree` | Copy only the currently expanded (visible) nodes as text |
 | **Expand All** | `structmap-solo.expandAll` | Expand all tree nodes |
 | **Collapse All** | `structmap-solo.collapseAll` | Collapse all tree nodes |
@@ -162,6 +167,7 @@ users []
 
 ---
 
+<a id="en-settings"></a>
 ### 🔧 Settings
 
 | Setting | Default | Description |
@@ -176,6 +182,7 @@ Settings can be changed via VS Code Settings (`Ctrl+,` / `Cmd+,`).
 
 ---
 
+<a id="en-requirements"></a>
 ### 📋 Requirements
 
 - **VS Code**: `v1.85.0` or later
@@ -183,18 +190,21 @@ Settings can be changed via VS Code Settings (`Ctrl+,` / `Cmd+,`).
 
 ---
 
+<a id="en-privacy"></a>
 ### 🔒 Data Storage & Privacy
 
 All parsing and rendering occur locally. There is no telemetry, no cloud service, and no AI feature. Your input text and active document contents are **never** transmitted over any network. Only display settings (type mode, tree style, root display) are stored locally via `ExtensionContext.globalState`.
 
 ---
 
+<a id="en-roadmap"></a>
 ### 🧭 Roadmap
 
 - **Workspace Mode**: Overview and structural visualization across entire workspace folders or multiple files.
 
 ---
 
+<a id="en-developer-docs"></a>
 ### 🛠️ Developer Documentation
 
 - Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
@@ -205,6 +215,7 @@ All parsing and rendering occur locally. There is no telemetry, no cloud service
 
 ---
 
+<a id="en-license"></a>
 ### 📄 License
 
 [MIT License](LICENSE)
@@ -224,20 +235,21 @@ All parsing and rendering occur locally. There is no telemetry, no cloud service
 
 ### 📑 目次
 
-- [💡 主な機能](#-主な機能)
-- [📂 対応フォーマット](#-対応フォーマット)
-- [📦 インストール/アップデート方法](#-インストールアップデート方法)
-- [🚀 使い方](#-使い方)
-- [⌨️ コマンド](#️-コマンド)
-- [🔧 設定](#-設定)
-- [📋 動作要件](#-動作要件)
-- [🔒 データの保存について](#-データの保存について)
-- [🧭 ロードマップ](#-ロードマップ)
-- [🛠️ 開発者向けドキュメント](#️-開発者向けドキュメント)
-- [📄 ライセンス](#-ライセンス)
+- [💡 主な機能](#ja-key-features)
+- [📂 対応フォーマット](#ja-supported-formats)
+- [📦 インストール/アップデート方法](#ja-installation)
+- [🚀 使い方](#ja-how-to-use)
+- [⌨️ コマンド](#ja-commands)
+- [🔧 設定](#ja-settings)
+- [📋 動作要件](#ja-requirements)
+- [🔒 データの保存について](#ja-privacy)
+- [🧭 ロードマップ](#ja-roadmap)
+- [🛠️ 開発者向けドキュメント](#ja-developer-docs)
+- [📄 ライセンス](#ja-license)
 
 ---
 
+<a id="ja-key-features"></a>
 ### 💡 主な機能
 
 1. **リアルタイムの構造可視化**
@@ -251,7 +263,7 @@ All parsing and rendering occur locally. There is no telemetry, no cloud service
    - ツリーノードの一括展開・一括集約に対応しています（※配列要素数が `maxArrayItems` を超える場合の範囲ノード等は自動展開を制限）。
 
 4. **ツリーのテキストコピー**
-   - ツリー全体、表示中（展開済み）のツリー、または選択したノードをテキストとしてクリップボードにコピーできます。
+   - ツリー全体、または表示中（展開済み）のツリーをテキストとしてクリップボードにコピーできます。
    - ツリー描画スタイルを Unicode 罫線（`└─`, `├─`）と ASCII 罫線（`--`, `|--`）でワンクリックで切り替えられます。
 
 5. **表示の切り替え**
@@ -264,6 +276,7 @@ All parsing and rendering occur locally. There is no telemetry, no cloud service
 
 ---
 
+<a id="ja-supported-formats"></a>
 ### 📂 対応フォーマット
 
 - **Markdown** (`.md`, `.markdown`)
@@ -277,6 +290,7 @@ All parsing and rendering occur locally. There is no telemetry, no cloud service
 
 ---
 
+<a id="ja-installation"></a>
 ### 📦 インストール/アップデート方法
 
 本拡張機能は **Visual Studio Marketplace** または **Open VSX Registry** から直接インストールできます（推奨）。Marketplace からインストールした場合、VS Code によって拡張機能のバージョン確認および自動アップデートが自動的に行われます。
@@ -319,6 +333,7 @@ VSCodium や Gitpod、Eclipse Theia など Open VSX を利用する環境の場�
 
 ---
 
+<a id="ja-how-to-use"></a>
 ### 🚀 使い方
 
 #### 1. 構造を表示する
@@ -358,11 +373,12 @@ users []
 
 ---
 
+<a id="ja-commands"></a>
 ### ⌨️ コマンド
 
 | コマンド名 | コマンド ID | 説明 |
 | :--- | :--- | :--- |
-| **ツリー構造をコピー** | `structmap-solo.copyTree` | ツリー全体（または選択ノード）をテキストとしてコピーする |
+| **ツリー構造をコピー** | `structmap-solo.copyTree` | ツリー全体をテキストとしてコピーする |
 | **可視ツリー構造をコピー** | `structmap-solo.copyVisibleTree` | 現在展開されている（表示中の）ノードのみをテキストとしてコピーする |
 | **すべて展開** | `structmap-solo.expandAll` | すべてのツリーノードを展開する |
 | **すべて集約** | `structmap-solo.collapseAll` | すべてのツリーノードを集約する |
@@ -373,6 +389,7 @@ users []
 
 ---
 
+<a id="ja-settings"></a>
 ### 🔧 設定
 
 | 設定キー | 既定値 | 説明 |
@@ -387,6 +404,7 @@ users []
 
 ---
 
+<a id="ja-requirements"></a>
 ### 📋 動作要件
 
 - **VS Code**: `v1.85.0` 以降
@@ -394,18 +412,21 @@ users []
 
 ---
 
+<a id="ja-privacy"></a>
 ### 🔒 データの保存について
 
 すべての解析・描画処理はローカルで完結します。テレメトリ（利用状況送信）、クラウドサービス、AI 機能は一切使用していません。入力テキストや編集中のドキュメントがネットワーク経由で送信されることは**絶対にありません**。表示設定（型表示・ツリースタイル・ルート表示）のみが VS Code の `ExtensionContext.globalState` を通じてローカル環境に保存されます。
 
 ---
 
+<a id="ja-roadmap"></a>
 ### 🧭 ロードマップ
 
 - **Workspace Mode**: ワークスペース全体または複数ファイルの構造概要一覧表示
 
 ---
 
+<a id="ja-developer-docs"></a>
 ### 🛠️ 開発者向けドキュメント
 
 - アーキテクチャ: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
@@ -416,6 +437,7 @@ users []
 
 ---
 
+<a id="ja-license"></a>
 ### 📄 ライセンス
 
 [MIT License](LICENSE)
