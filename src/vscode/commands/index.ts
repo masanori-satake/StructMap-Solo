@@ -118,8 +118,8 @@ export function registerCommands(
       }
       const fileName = editor.document.fileName;
       const content = editor.document.getText();
-      const { maxFileSizeMB, maxArrayItems } = getStructMapConfig(editor.document.uri);
-      const parseResult = structMapService.build(fileName, content, maxFileSizeMB, maxArrayItems);
+      const { maxFileSizeMB, maxArrayItems, customMappings } = getStructMapConfig(editor.document.uri);
+      const parseResult = structMapService.build(fileName, content, maxFileSizeMB, maxArrayItems, customMappings);
       if (!isParseSuccess(parseResult)) {
         vscode.window.showWarningMessage(
           vscode.l10n?.t
