@@ -2,6 +2,19 @@
 
 "StructMap-Solo" 拡張機能のすべての注目すべき変更はこのファイルに記録されます。
 
+## [1.7.0] - 2026-11-01
+
+### 変更 (Changed)
+- **CI/CD ワークフローの共通化**:
+  - 単一の `build-and-publish.yml` を廃止し、`masanori-satake/common-workflows` の再利用可能ワークフローを呼び出す構成へ移行
+  - `code-quality.yml`（`base-ci-vscode.yml` 呼び出し: 版チェック・Lint・テスト・ビルド）を追加
+  - `release-package.yml`（`base-release-vscode.yml` 呼び出し: 手動実行による VSIX 再生成と Marketplace / Open VSX / GitHub Release への公開）を追加
+  - `security-scan.yml`（`base-security.yml` 呼び出し: `package.json` / `package-lock.json` の脆弱性スキャン）を新規導入
+- **npm スクリプトの追加・統一**:
+  - `check-version`、`check-version-bump`、`update-version`、`check-types`（`tsc --noEmit`）を追加
+  - `compile` および `pretest` で `check-version` → `check-types` → `lint` → `tsc -p ./` を順に実行するよう変更（`package`（`vsce package`）は `vscode:prepublish` 経由で `compile` の検証を実行）
+  - バージョン一括更新スクリプト `scripts/update-version.js` を共通テンプレートから導入
+
 ## [1.6.2] - 2026-11-01
 
 ### ドキュメント (Documentation)
