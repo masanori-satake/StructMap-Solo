@@ -9,6 +9,10 @@
   - `structmap-solo.copyVisibleTree` が `structMap.customMappings` の設定をパーサーに渡しておらず、カスタムマッピングで紐付けたファイルを正しく解析できない問題を修正
   - 「ツリー構造をコピー」と「可視ツリー構造をコピー」の両方がカスタムマッピングを使うことを確認するテストを追加
 
+### 変更 (Changed)
+- **パッケージ作成時の重複した Lint 実行を削減**:
+  - `vscode:prepublish` をビルド（`tsc -p ./`）のみに変更。Lint・型チェック・版チェックは `npm test` の `pretest` で 1 回だけ実行し、リリース時の Lint 実行回数を 2 回から 1 回に削減
+
 ## [1.7.2] - 2026-11-01
 
 ### 変更 (Changed)

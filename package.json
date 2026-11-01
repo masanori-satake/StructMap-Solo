@@ -193,7 +193,7 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "tsc -p ./",
     "compile": "npm run check-version && npm run check-types && npm run lint && tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run check-version && npm run check-types && npm run lint && tsc -p ./",
