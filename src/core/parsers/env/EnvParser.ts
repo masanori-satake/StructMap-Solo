@@ -19,16 +19,34 @@ interface EnvEntry {
 }
 
 /**
- * Strips quotes and unescapes standard escape sequences from an env value string.
+ * Safely extracts a properly closed quoted value, taking escape sequences into account.
+ * Returns null if the value is not quoted or if the quote is unclosed/escaped at the end.
+ */
+function extractQuotedString(val: string): string | null {
+  const trimmed = val.trim();
+  if ((trimmed.startsWith('"') || trimmed.startsWith("'")) && trimmed.length >= 2) {
+    const quote = trimmed[0];
+    for (let i = 1; i < trimmed.length; i++) {
+      if (trimmed[i] === '\\' && quote === '"') {
+        i++; // Skip escaped character safely
+        continue;
+      }
+      if (trimmed[i] === quote) {
+        return trimmed.slice(0, i + 1);
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Strips quotes and unescapes standard escape sequences from a quoted env value string.
  */
 function unescapeEnvValue(val: string): string {
-  val = val.trim();
-  if (
-    (val.startsWith('"') && val.endsWith('"') && val.length >= 2) ||
-    (val.startsWith("'") && val.endsWith("'") && val.length >= 2)
-  ) {
-    const quote = val[0];
-    const inner = val.slice(1, -1);
+  const quoted = extractQuotedString(val);
+  if (quoted) {
+    const quote = quoted[0];
+    const inner = quoted.slice(1, -1);
     if (quote === "'") {
       // Single quotes: raw content without escape processing
       return inner;
@@ -45,7 +63,7 @@ function unescapeEnvValue(val: string): string {
       }
     });
   }
-  return val;
+  return val.trim();
 }
 
 /**
@@ -57,26 +75,10 @@ function stripInlineComment(val: string): string {
     return '';
   }
 
-  // Quoted value
-  if (trimmed.startsWith('"') || trimmed.startsWith("'")) {
-    const quote = trimmed[0];
-    let endQuoteIdx = -1;
-    for (let i = 1; i < trimmed.length; i++) {
-      if (trimmed[i] === '\\' && quote === '"') {
-        i++; // Skip escaped character
-        continue;
-      }
-      if (trimmed[i] === quote) {
-        endQuoteIdx = i;
-        break;
-      }
-    }
-
-    if (endQuoteIdx !== -1) {
-      const quotedPart = trimmed.slice(0, endQuoteIdx + 1);
-      // Remainder after closing quote may contain comment
-      return quotedPart;
-    }
+  // Quoted value check: protect quoted contents from inline comment trimming
+  const quoted = extractQuotedString(trimmed);
+  if (quoted !== null) {
+    return quoted;
   }
 
   // Unquoted value: remove trailing whitespace + # comment
@@ -94,13 +96,11 @@ function inferEnvValue(rawValue: string): {
   const cleanValue = stripInlineComment(rawValue);
   const trimmed = cleanValue.trim();
 
-  // If originally quoted, treat as string
-  if (
-    (trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length >= 2) ||
-    (trimmed.startsWith("'") && trimmed.endsWith("'") && trimmed.length >= 2)
-  ) {
+  // If properly quoted, treat as string safely
+  const quoted = extractQuotedString(trimmed);
+  if (quoted !== null && quoted === trimmed) {
     return {
-      parsedValue: unescapeEnvValue(trimmed),
+      parsedValue: unescapeEnvValue(quoted),
       valueType: 'string'
     };
   }

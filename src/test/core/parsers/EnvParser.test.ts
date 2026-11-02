@@ -179,4 +179,29 @@ suite('EnvParser Test Suite', () => {
     );
   });
 
+  test('エスケープされた引用符および未終了引用符の安全な境界処理', () => {
+    const content = `
+      ESCAPED_QUOTE="hello\\"world" # valid quoted
+      UNCLOSED="unclosed\\" # comment here
+      ESCAPED_SLASH="ends_with_backslash\\\\" # properly closed with escaped slash
+    `;
+    const tree = getTree(parser.parse(content, '.env'));
+
+    const escapedNode = tree.root.children.find((n: StructNode) => n.name === 'ESCAPED');
+    assert.strictEqual(
+      escapedNode?.children.find((n: StructNode) => n.name === 'QUOTE')?.value,
+      'hello"world'
+    );
+
+    const unclosedNode = tree.root.children.find((n: StructNode) => n.name === 'UNCLOSED');
+    // UNCLOSED is not properly closed before comment, so treated as unquoted string without leaking or breaking
+    assert.strictEqual(unclosedNode?.value, '"unclosed\\"');
+
+    const slashNode = tree.root.children.find((n: StructNode) => n.name === 'ESCAPED');
+    assert.strictEqual(
+      slashNode?.children.find((n: StructNode) => n.name === 'SLASH')?.value,
+      'ends_with_backslash\\'
+    );
+  });
+
 });
