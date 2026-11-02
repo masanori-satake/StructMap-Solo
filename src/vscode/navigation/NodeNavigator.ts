@@ -778,10 +778,10 @@ export class NodeNavigator {
 
     const lines = text.split(/\r?\n/);
 
-    // 1. Try exact full key match: KEY= or export KEY= (allowing leading whitespace)
+    // 1. Try exact full key match from bottom to top so duplicate keys match EnvParser's last updated value
     const exactRegex = new RegExp(`^\\s*(?:export\\s+)?${segmentPattern}\\s*=`);
 
-    for (let i = 0; i < lines.length; i++) {
+    for (let i = lines.length - 1; i >= 0; i--) {
       const line = lines[i];
       if (exactRegex.test(line)) {
         const col = Math.max(0, line.indexOf(leafName));
