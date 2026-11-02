@@ -152,4 +152,31 @@ suite('EnvParser Test Suite', () => {
     assert.strictEqual(logNode?.children.find((n: StructNode) => n.name === 'LEVEL')?.value, 'debug');
   });
 
+  test('区切り文字の差異保持: DB_HOST と DB.HOST が別ノードとして表現されること', () => {
+    const content = `
+      DB_HOST=underscore_host
+      DB.HOST=dot_host
+      DB_HOST=underscore_host_updated
+    `;
+    const tree = getTree(parser.parse(content, '.env'));
+
+    const dbGroups = tree.root.children.filter((n: StructNode) => n.name === 'DB');
+    assert.strictEqual(dbGroups.length, 2);
+
+    const underscoreGroup = dbGroups.find((n: StructNode) => n.attributes?.delimiter === '_');
+    const dotGroup = dbGroups.find((n: StructNode) => n.attributes?.delimiter === '.');
+
+    assert.ok(underscoreGroup);
+    assert.ok(dotGroup);
+
+    assert.strictEqual(
+      underscoreGroup?.children.find((n: StructNode) => n.name === 'HOST')?.value,
+      'underscore_host_updated'
+    );
+    assert.strictEqual(
+      dotGroup?.children.find((n: StructNode) => n.name === 'HOST')?.value,
+      'dot_host'
+    );
+  });
+
 });

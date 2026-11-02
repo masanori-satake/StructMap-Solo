@@ -4,9 +4,14 @@ import {
 } from '../../errors';
 import { StructNode, StructTree, ValueType } from '../../model';
 
+interface KeySegment {
+  name: string;
+  delimiter: '.' | '_' | '';
+}
+
 interface EnvEntry {
   rawKey: string;
-  keySegments: string[];
+  segments: KeySegment[];
   rawValue: string;
   parsedValue: string | number | boolean | null;
   valueType: ValueType;
@@ -185,14 +190,27 @@ export class EnvParser {
       const rawVal = line.slice(eqIdx + 1);
       const { parsedValue, valueType } = inferEnvValue(rawVal);
 
-      // Split key by dot (.) or underscore (_)
-      // To support nested groups: DB_HOST -> ['DB', 'HOST']
-      // app.server.port -> ['app', 'server', 'port']
-      const keySegments = rawKey.split(/[._]/).filter(Boolean);
+      // Parse key into segments with their trailing/preceding delimiters
+      const segments: KeySegment[] = [];
+      const regex = /([^._]+)([._]?)/g;
+      let match: RegExpExecArray | null;
+
+      while ((match = regex.exec(rawKey)) !== null) {
+        if (match[1]) {
+          segments.push({
+            name: match[1],
+            delimiter: (match[2] as '.' | '_') || ''
+          });
+        }
+      }
+
+      if (segments.length === 0) {
+        segments.push({ name: rawKey, delimiter: '' });
+      }
 
       entries.push({
         rawKey,
-        keySegments: keySegments.length > 0 ? keySegments : [rawKey],
+        segments,
         rawValue: rawVal,
         parsedValue,
         valueType,
@@ -220,32 +238,46 @@ export class EnvParser {
     currentPath: string[],
     createId: () => string
   ): void {
-    const { keySegments, parsedValue, valueType } = entry;
+    const { segments, parsedValue, valueType } = entry;
     let curr = parent;
     let path = currentPath;
 
-    for (let i = 0; i < keySegments.length; i++) {
-      const segment = keySegments[i];
-      const isLeaf = i === keySegments.length - 1;
-      const nextPath = [...path, segment];
+    for (let i = 0; i < segments.length; i++) {
+      const { name: segmentName, delimiter } = segments[i];
+      const isLeaf = i === segments.length - 1;
+      const nextPath = [...path, segmentName];
 
-      let existingChild = curr.children.find((c) => c.name === segment);
+      // Match child with same name AND delimiter to distinguish DB_HOST vs DB.HOST
+      let existingChild = curr.children.find((c) => {
+        if (c.name !== segmentName) return false;
+        const attrDelim = c.attributes?.delimiter ?? '';
+        // If existing is an object (intermediate) and delimiter matches or either is intermediate
+        if (isLeaf) {
+          return attrDelim === delimiter;
+        } else {
+          // For intermediate segment, match node with same name and delimiter or leaf that is being promoted
+          return attrDelim === delimiter || (attrDelim === '' && c.nodeType === 'value');
+        }
+      });
 
       if (isLeaf) {
         if (existingChild) {
-          // Overwrite / update existing child if duplicate key
-          existingChild.nodeType = 'value';
+          // Overwrite / update existing child if duplicate key with same delimiter
+          if (existingChild.nodeType !== 'object') {
+            existingChild.nodeType = 'value';
+          }
           existingChild.value = parsedValue;
           existingChild.valueType = valueType;
         } else {
           const leafNode: StructNode = {
             id: createId(),
-            name: segment,
+            name: segmentName,
             path: nextPath,
             nodeType: 'value',
             valueType,
             value: parsedValue,
-            children: []
+            children: [],
+            attributes: delimiter ? { delimiter } : undefined
           };
           curr.children.push(leafNode);
         }
@@ -253,15 +285,19 @@ export class EnvParser {
         if (!existingChild) {
           existingChild = {
             id: createId(),
-            name: segment,
+            name: segmentName,
             path: nextPath,
             nodeType: 'object',
-            children: []
+            children: [],
+            attributes: delimiter ? { delimiter } : undefined
           };
           curr.children.push(existingChild);
         } else if (existingChild.nodeType === 'value') {
           // If a value node exists at intermediate position, convert to object while retaining value
           existingChild.nodeType = 'object';
+          if (delimiter) {
+            existingChild.attributes = { ...(existingChild.attributes || {}), delimiter };
+          }
         }
         curr = existingChild;
         path = nextPath;
