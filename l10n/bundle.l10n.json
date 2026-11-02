@@ -6,6 +6,8 @@
   "Frontmatter Parse Error": "Frontmatter Parse Error",
   "XML Parse Error": "XML Parse Error",
   "TOML Parse Error": "TOML Parse Error",
+  "NDJSON Parse Error": "NDJSON Parse Error",
+  "Env Parse Error": "Env Parse Error",
   "Unsupported Format": "Unsupported Format",
   "Empty File": "Empty File",
   "Parse Error": "Parse Error",

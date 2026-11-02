@@ -168,7 +168,7 @@ suite('StructMapService Test Suite', () => {
     }
   });
 
-  test('supportsTypes: Returns true only for JSON, YAML, and XML files', () => {
+  test('supportsTypes: Returns true only for JSON, YAML, XML, TOML, NDJSON, and Env files', () => {
     // JSON files
     assert.strictEqual(service.supportsTypes('data.json'), true);
     assert.strictEqual(service.supportsTypes('/path/to/data.JSON'), true);
@@ -182,6 +182,18 @@ suite('StructMapService Test Suite', () => {
     assert.strictEqual(service.supportsTypes('document.xml'), true);
     assert.strictEqual(service.supportsTypes('/path/to/DATA.XML'), true);
 
+    // TOML files
+    assert.strictEqual(service.supportsTypes('config.toml'), true);
+
+    // NDJSON / JSONL files
+    assert.strictEqual(service.supportsTypes('data.ndjson'), true);
+    assert.strictEqual(service.supportsTypes('events.jsonl'), true);
+
+    // Env files
+    assert.strictEqual(service.supportsTypes('.env'), true);
+    assert.strictEqual(service.supportsTypes('.env.local'), true);
+    assert.strictEqual(service.supportsTypes('/path/to/.env.production'), true);
+
     // Markdown files
     assert.strictEqual(service.supportsTypes('README.md'), false);
     assert.strictEqual(service.supportsTypes('doc.markdown'), false);
@@ -192,6 +204,34 @@ suite('StructMapService Test Suite', () => {
     assert.strictEqual(service.supportsTypes('noext'), false);
     assert.strictEqual(service.supportsTypes(''), false);
     assert.strictEqual(service.supportsTypes(undefined), false);
+  });
+
+  test('NDJSON and Env 統合: 拡張子およびファイル名によるルーティング', () => {
+    const ndjsonContent = '{"name": "test"}\n{"name": "test2"}';
+    const ndjsonRes = service.build('data.ndjson', ndjsonContent);
+    assert.strictEqual(ndjsonRes.type, 'success');
+    if (ndjsonRes.type === 'success') {
+      assert.strictEqual(ndjsonRes.tree.sourceFormat, 'ndjson');
+    }
+
+    const jsonlRes = service.build('events.jsonl', ndjsonContent);
+    assert.strictEqual(jsonlRes.type, 'success');
+    if (jsonlRes.type === 'success') {
+      assert.strictEqual(jsonlRes.tree.sourceFormat, 'ndjson');
+    }
+
+    const envContent = 'PORT=3000\nDB_HOST=127.0.0.1';
+    const envRes = service.build('.env', envContent);
+    assert.strictEqual(envRes.type, 'success');
+    if (envRes.type === 'success') {
+      assert.strictEqual(envRes.tree.sourceFormat, 'env');
+    }
+
+    const envLocalRes = service.build('.env.production', envContent);
+    assert.strictEqual(envLocalRes.type, 'success');
+    if (envLocalRes.type === 'success') {
+      assert.strictEqual(envLocalRes.tree.sourceFormat, 'env');
+    }
   });
 
   test('AC-7 VSCode API非依存: StructMapService does not import VSCode API', () => {

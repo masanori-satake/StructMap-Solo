@@ -26,7 +26,9 @@ export type SourceFormat =
   | 'yaml'
   | 'xml'
   | 'jsonSchema'
-  | 'toml';
+  | 'toml'
+  | 'ndjson'
+  | 'env';
 
 /**
  * Represents a single node in the unified document structure tree.

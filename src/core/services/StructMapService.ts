@@ -1,9 +1,11 @@
 import { createParseError, ParseErrorCode, ParseResult } from '../errors';
 import {
+  EnvParser,
   isJsonSchema,
   JsonParser,
   JsonSchemaParser,
   MarkdownParser,
+  NdjsonParser,
   TomlParser,
   XmlParser,
   YamlParser,
@@ -20,6 +22,8 @@ export class StructMapService {
   private yamlParser = new YamlParser();
   private xmlParser = new XmlParser();
   private tomlParser = new TomlParser();
+  private ndjsonParser = new NdjsonParser();
+  private envParser = new EnvParser();
 
   /**
    * Builds a ParseResult (ParseSuccess or ParseError) based on the file extension, custom mappings, and content.
@@ -40,8 +44,9 @@ export class StructMapService {
   ): ParseResult {
     const customFormat = resolveParserByCustomMappings(fileName, customMappings);
     const ext = this.getFileExtension(fileName);
+    const baseName = this.getBaseFileName(fileName);
 
-    if (!customFormat && (!ext || !this.isSupportedExtension(ext))) {
+    if (!customFormat && (!this.isSupportedExtension(ext, baseName))) {
       return createParseError(
         ParseErrorCode.UNSUPPORTED_FORMAT,
         `Unsupported file format: ${fileName}`
@@ -88,12 +93,22 @@ export class StructMapService {
           return this.xmlParser.parse(content, fileName, maxArrayItems);
         case 'toml':
           return this.tomlParser.parse(content, fileName, maxArrayItems);
+        case 'ndjson':
+        case 'jsonl':
+          return this.ndjsonParser.parse(content, fileName, maxArrayItems);
+        case 'env':
+        case 'dotenv':
+          return this.envParser.parse(content, fileName, maxArrayItems);
         default:
           return createParseError(
             ParseErrorCode.UNSUPPORTED_FORMAT,
             `Unsupported file format: ${fileName}`
           );
       }
+    }
+
+    if (this.isEnvFile(fileName)) {
+      return this.envParser.parse(content, fileName, maxArrayItems);
     }
 
     switch (ext) {
@@ -109,6 +124,9 @@ export class StructMapService {
         return this.xmlParser.parse(content, fileName, maxArrayItems);
       case '.toml':
         return this.tomlParser.parse(content, fileName, maxArrayItems);
+      case '.ndjson':
+      case '.jsonl':
+        return this.ndjsonParser.parse(content, fileName, maxArrayItems);
       default:
         return createParseError(
           ParseErrorCode.UNSUPPORTED_FORMAT,
@@ -138,14 +156,29 @@ export class StructMapService {
   }
 
   private getFileExtension(fileName: string): string {
-    const lastDot = fileName.lastIndexOf('.');
+    const base = this.getBaseFileName(fileName);
+    const lastDot = base.lastIndexOf('.');
     if (lastDot === -1 || lastDot === 0) {
       return '';
     }
-    return fileName.slice(lastDot).toLowerCase();
+    return base.slice(lastDot).toLowerCase();
   }
 
-  private isSupportedExtension(ext: string): boolean {
+  private getBaseFileName(fileName: string): string {
+    const normalized = fileName.replace(/\\/g, '/');
+    const lastSlash = normalized.lastIndexOf('/');
+    return lastSlash === -1 ? normalized : normalized.slice(lastSlash + 1);
+  }
+
+  private isEnvFile(fileName: string): boolean {
+    const base = this.getBaseFileName(fileName).toLowerCase();
+    return base === '.env' || base.startsWith('.env.');
+  }
+
+  private isSupportedExtension(ext: string, baseName?: string): boolean {
+    if (baseName && this.isEnvFile(baseName)) {
+      return true;
+    }
     return (
       ext === '.md' ||
       ext === '.markdown' ||
@@ -153,7 +186,9 @@ export class StructMapService {
       ext === '.yml' ||
       ext === '.yaml' ||
       ext === '.xml' ||
-      ext === '.toml'
+      ext === '.toml' ||
+      ext === '.ndjson' ||
+      ext === '.jsonl'
     );
   }
 
@@ -178,11 +213,27 @@ export class StructMapService {
         fmt === 'toml' ||
         fmt === 'jsonschema' ||
         fmt === 'schema' ||
-        fmt === 'json-schema'
+        fmt === 'json-schema' ||
+        fmt === 'ndjson' ||
+        fmt === 'jsonl' ||
+        fmt === 'env' ||
+        fmt === 'dotenv'
       );
     }
 
+    if (this.isEnvFile(fileName)) {
+      return true;
+    }
+
     const ext = this.getFileExtension(fileName);
-    return ext === '.json' || ext === '.yml' || ext === '.yaml' || ext === '.xml' || ext === '.toml';
+    return (
+      ext === '.json' ||
+      ext === '.yml' ||
+      ext === '.yaml' ||
+      ext === '.xml' ||
+      ext === '.toml' ||
+      ext === '.ndjson' ||
+      ext === '.jsonl'
+    );
   }
 }

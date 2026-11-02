@@ -1,6 +1,6 @@
 # StructMap-Solo
 
-[![Version](https://img.shields.io/badge/version-v1.7.3-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-v1.8.0-blue.svg)](package.json)
 [![Visual Studio Marketplace](https://vsmarketplacebadges.dev/version/masanori-satake.structmap-solo.svg?label=Marketplace&color=blue)](https://marketplace.visualstudio.com/items?itemName=masanori-satake.structmap-solo)
 [![Open VSX](https://img.shields.io/open-vsx/v/masanori-satake/structmap-solo?label=Open%20VSX)](https://open-vsx.org/extension/masanori-satake/structmap-solo)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/masanori-satake/StructMap-Solo)](https://github.com/masanori-satake/StructMap-Solo/releases)
@@ -14,7 +14,7 @@
 <a id="english"></a>
 ## English
 
-**StructMap-Solo** is a lightweight, 100% local VS Code extension that intuitively visualizes the document and hierarchical structure of Markdown, JSON, YAML, XML, TOML, and JSON Schema files directly in your Explorer View sidebar.
+**StructMap-Solo** is a lightweight, 100% local VS Code extension that intuitively visualizes the document and hierarchical structure of Markdown, JSON, YAML, XML, TOML, JSON Schema, NDJSON, and Env (.env) files directly in your Explorer View sidebar.
 
 As documents and configuration files grow larger and more complex, understanding their overall structure and accessing specific nodes or headings becomes challenging. StructMap-Solo parses the active file in real time, enabling you to interactively view and navigate object trees and document outlines without AI or any external services.
 
@@ -57,7 +57,7 @@ As documents and configuration files grow larger and more complex, understanding
    - Switch tree drawing styles between Unicode lines (`└─`, `├─`) and ASCII lines (`--`, `|--`) with a single click.
 
 5. **Display Toggles**
-   - **Type Mode**: Toggle data type visibility for supported formats (JSON, YAML, XML, TOML, JSON Schema).
+   - **Type Mode**: Toggle data type visibility for supported formats (JSON, YAML, XML, TOML, JSON Schema, NDJSON, Env).
    - **Root Display**: Show or hide the root node.
    - Display settings are preserved across editor restarts.
 
@@ -76,6 +76,8 @@ As documents and configuration files grow larger and more complex, understanding
 - **YAML** (`.yml`, `.yaml`)
 - **XML** (`.xml`)
 - **TOML** (`.toml`)
+- **NDJSON** (`.ndjson`, `.jsonl` - Newline Delimited JSON with physical line index and chunking)
+- **Env** (`.env`, `.env.*` - Dotfiles with recursive prefix grouping and type inference)
 - **Custom Mappings** (Bind any custom file extension, prefix, or suffix via `structMap.customMappings` in `settings.json`)
 
 ---
@@ -107,7 +109,7 @@ For VSCodium, Gitpod, Eclipse Theia, or environments configured with Open VSX:
 #### Method 3: Install from VSIX Package File (Offline / Manual)
 
 1. Go to the [GitHub Releases](https://github.com/masanori-satake/StructMap-Solo/releases) page.
-2. Download the `.vsix` file (e.g., `structmap-solo-1.7.3.vsix`) under Assets.
+2. Download the `.vsix` file (e.g., `structmap-solo-1.8.0.vsix`) under Assets.
 3. In VS Code Extensions view (`Ctrl+Shift+X`), click the **"..." (Views and More Actions)** icon at the top right, select **Install from VSIX...**, and choose the downloaded file.
 
 ---
@@ -226,7 +228,7 @@ All parsing and rendering occur locally. There is no telemetry, no cloud service
 <a id="japanese"></a>
 ## Japanese (日本語)
 
-**StructMap-Solo** は、Markdown、JSON、YAML、XML、TOML、JSON Schema ファイルのドキュメント構造・階層構造をサイドバー（エクスプローラービュー）で直感的に可視化する、軽量で 100% ローカル動作の VS Code 拡張機能です。
+**StructMap-Solo** は、Markdown、JSON、YAML、XML、TOML、JSON Schema、NDJSON、Env (.env) ファイルのドキュメント構造・階層構造をサイドバー（エクスプローラービュー）で直感的に可視化する、軽量で 100% ローカル動作の VS Code 拡張機能です。
 
 ドキュメントや設定ファイルが大規模化・複雑化すると、全体構造の把握や特定のノード・見出しへのアクセスが困難になります。StructMap-Solo は、エディタで開いているファイルをリアルタイムに解析し、AI や外部サービスに頼ることなく、アウトラインやオブジェクトのツリー構造を対話的に表示・操作できるようにします。
 
@@ -269,7 +271,7 @@ All parsing and rendering occur locally. There is no telemetry, no cloud service
    - ツリー描画スタイルを Unicode 罫線（`└─`, `├─`）と ASCII 罫線（`--`, `|--`）でワンクリックで切り替えられます。
 
 5. **表示の切り替え**
-   - **型表示**: 対応フォーマット（JSON、YAML、XML、TOML、JSON Schema）のデータ型の表示/非表示を切り替えられます。
+   - **型表示**: 対応フォーマット（JSON、YAML、XML、TOML、JSON Schema、NDJSON、Env）のデータ型の表示/非表示を切り替えられます。
    - **ルート表示**: ルートノードの表示/非表示を切り替えられます。
    - 表示設定はエディタを再起動しても保持されます。
 
@@ -288,6 +290,8 @@ All parsing and rendering occur locally. There is no telemetry, no cloud service
 - **YAML** (`.yml`, `.yaml`)
 - **XML** (`.xml`)
 - **TOML** (`.toml`)
+- **NDJSON** (`.ndjson`, `.jsonl` - 改行区切り JSON、物理行番号表示・チャンキング対応)
+- **Env** (`.env`, `.env.*` - プレフィックスによる再帰的グループ化・型推論対応)
 - **カスタムマッピング** (`settings.json` での `structMap.customMappings` による任意の拡張子・プレフィックス・サフィックスの紐付け)
 
 ---
@@ -324,7 +328,7 @@ VSCodium や Gitpod、Eclipse Theia など Open VSX を利用する環境の場�
 
 ##### 手順 1: VSIX ファイルのダウンロード
 1. 本リポジトリの [GitHub Releases](https://github.com/masanori-satake/StructMap-Solo/releases) ページにアクセスします。
-2. 最新リリースの **Assets** セクションから、`.vsix` ファイル（例: `structmap-solo-1.7.3.vsix`）をダウンロードします。
+2. 最新リリースの **Assets** セクションから、`.vsix` ファイル（例: `structmap-solo-1.8.0.vsix`）をダウンロードします。
 
 ##### 手順 2: VS Code へのインストール
 1. VS Code の拡張機能ビュー（`Ctrl+Shift+X` / `Cmd+Shift+X`）を開きます。

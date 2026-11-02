@@ -2,6 +2,20 @@
 
 "StructMap-Solo" 拡張機能のすべての注目すべき変更はこのファイルに記録されます。
 
+## [1.8.0] - 2026-11-02
+
+### 追加 (Added)
+- **NDJSON (Newline Delimited JSON) フォーマットサポート**:
+  - 改行区切り JSON（`.ndjson`, `.jsonl`）の各行を独立してパースし、`Line <物理行番号>` 形式でツリー表示する軽量・ゼロ依存パーサー（`NdjsonParser`）を実装
+  - 大量行データに対応する配列同様の Chunking 機能（`maxArrayItems` に基づく `[Line 1 .. Line 50]` 形式の範囲ノード化）をサポート
+  - 構文エラー発生行を特定した `NDJSON_PARSE_ERROR` の伝播および多言語エラー表示
+  - `NodeNavigator` による NDJSON 行およびプロパティ位置へのジャンプに対応
+- **Env (.env / Dotfile) フォーマットサポート**:
+  - `.env`, `.env.*`（例: `.env.local`, `.env.production`）の設定ファイル解析に対応したゼロ依存パーサー（`EnvParser`）を実装
+  - キーのプレフィックス（アンダースコア `_` またはドット `.` 区切り）に基づく再帰的な自動グループ化・階層化表示
+  - 引用符（`"..."`, `'...'`）のアンエスケープ処理および型推論（number, boolean, null, string）に対応
+  - `NodeNavigator` による Env キーへのジャンプに対応
+
 ## [1.7.3] - 2026-11-01
 
 ### 修正 (Fixed)

@@ -80,13 +80,36 @@ export class NodeNavigator {
       return this.findTomlPosition(text, node);
     }
 
-    // Default fallback try markdown then json then yaml then xml then toml
+    if (
+      fileName.endsWith('.ndjson') ||
+      fileName.endsWith('.jsonl') ||
+      langId === 'ndjson' ||
+      langId === 'jsonl' ||
+      node.path.some((p) => /^Line\s+\d+/.test(p))
+    ) {
+      return this.findNdjsonPosition(document, text, node);
+    }
+
+    if (
+      fileName === '.env' ||
+      fileName.endsWith('.env') ||
+      fileName.includes('/.env.') ||
+      fileName.includes('\\.env.') ||
+      langId === 'properties' ||
+      langId === 'dotenv'
+    ) {
+      return this.findEnvPosition(text, node);
+    }
+
+    // Default fallback try markdown then json then yaml then xml then toml then ndjson then env
     return (
       this.findMarkdownPosition(text, node) ||
       this.findJsonPosition(document, text, node) ||
       this.findYamlPosition(text, node) ||
       this.findXmlPosition(text, node) ||
-      this.findTomlPosition(text, node)
+      this.findTomlPosition(text, node) ||
+      this.findNdjsonPosition(document, text, node) ||
+      this.findEnvPosition(text, node)
     );
   }
 
@@ -667,6 +690,129 @@ export class NodeNavigator {
     }
 
     return new vscode.Position(currentLine, 0);
+  }
+
+  /**
+   * Finds position in an NDJSON document.
+   */
+  private findNdjsonPosition(
+    _document: vscode.TextDocument,
+    text: string,
+    node: StructNode
+  ): vscode.Position | undefined {
+    const rawKeys = node.path.slice(1);
+    if (rawKeys.length === 0) {
+      return new vscode.Position(0, 0);
+    }
+
+    // Check if node is a range node: [Line X .. Line Y]
+    const rangeKey = rawKeys.find((k) => /^\[Line\s+\d+\s*\.\.\s*Line\s+\d+\]$/.test(k));
+    // Filter out range markers
+    const targetKeys = rawKeys.filter((k) => !/^\[Line\s+\d+\s*\.\.\s*Line\s+\d+\]$/.test(k));
+
+    if (targetKeys.length === 0) {
+      if (rangeKey) {
+        const rangeMatch = rangeKey.match(/^\[Line\s+(\d+)\s*\.\.\s*Line\s+\d+\]$/);
+        if (rangeMatch) {
+          const startLine = parseInt(rangeMatch[1], 10) - 1;
+          return new vscode.Position(Math.max(0, startLine), 0);
+        }
+      }
+      return new vscode.Position(0, 0);
+    }
+
+    const lineKey = targetKeys[0];
+    const lineMatch = lineKey.match(/^Line\s+(\d+)$/);
+    if (!lineMatch) {
+      return undefined;
+    }
+
+    const targetLineNum = parseInt(lineMatch[1], 10); // 1-based line number
+    const targetLineIndex = targetLineNum - 1; // 0-based
+    const lines = text.split(/\r?\n/);
+    if (targetLineIndex < 0 || targetLineIndex >= lines.length) {
+      return undefined;
+    }
+
+    if (targetKeys.length === 1) {
+      return new vscode.Position(targetLineIndex, 0);
+    }
+
+    // Search properties within that line's JSON
+    const lineContent = lines[targetLineIndex];
+    const propertyKeys = targetKeys.slice(1);
+    const subNode: StructNode = {
+      ...node,
+      path: ['lineRoot', ...propertyKeys]
+    };
+
+    const dummyDoc = {
+      positionAt: (offset: number) => {
+        return new vscode.Position(targetLineIndex, offset);
+      }
+    } as unknown as vscode.TextDocument;
+
+    const pos = this.findJsonPosition(dummyDoc, lineContent, subNode);
+    if (pos) {
+      return pos;
+    }
+
+    return new vscode.Position(targetLineIndex, 0);
+  }
+
+  /**
+   * Finds position in an Env document.
+   */
+  private findEnvPosition(
+    text: string,
+    node: StructNode
+  ): vscode.Position | undefined {
+    const rawKeys = node.path.slice(1);
+    if (rawKeys.length === 0) {
+      return new vscode.Position(0, 0);
+    }
+
+    // Build regex allowing both '_' and '.' as segment delimiters
+    const segmentPattern = rawKeys.map((k) => this.escapeRegExp(k)).join('[._]');
+    const leafName = rawKeys[rawKeys.length - 1];
+
+    const lines = text.split(/\r?\n/);
+
+    // 1. Try exact full key match from bottom to top so duplicate keys match EnvParser's last updated value
+    const exactRegex = new RegExp(`^\\s*(?:export\\s+)?${segmentPattern}\\s*=`);
+
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i];
+      if (exactRegex.test(line)) {
+        const col = Math.max(0, line.indexOf(leafName));
+        return new vscode.Position(i, col);
+      }
+    }
+
+    // 2. Try prefix match for group nodes: GROUP[_.].*= (allowing leading whitespace)
+    const prefixRegex = new RegExp(`^\\s*(?:export\\s+)?${segmentPattern}[_.].*=`);
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (prefixRegex.test(line)) {
+        const col = Math.max(0, line.indexOf(leafName));
+        return new vscode.Position(i, col);
+      }
+    }
+
+    // 3. Fallback: match leaf segment bounded by segment boundaries before '='
+    const leafBoundaryRegex = new RegExp(`(^|[._\\s])${this.escapeRegExp(leafName)}([._\\s=]|$)`);
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const eqIdx = line.indexOf('=');
+      if (eqIdx !== -1) {
+        const keyPart = line.slice(0, eqIdx);
+        if (leafBoundaryRegex.test(keyPart)) {
+          return new vscode.Position(i, Math.max(0, keyPart.indexOf(leafName)));
+        }
+      }
+    }
+
+    return undefined;
   }
 
   private escapeXmlEntities(str: string): string {
