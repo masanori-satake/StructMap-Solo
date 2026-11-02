@@ -705,9 +705,19 @@ export class NodeNavigator {
       return new vscode.Position(0, 0);
     }
 
-    // Filter out range markers: [Line X .. Line Y]
+    // Check if node is a range node: [Line X .. Line Y]
+    const rangeKey = rawKeys.find((k) => /^\[Line\s+\d+\s*\.\.\s*Line\s+\d+\]$/.test(k));
+    // Filter out range markers
     const targetKeys = rawKeys.filter((k) => !/^\[Line\s+\d+\s*\.\.\s*Line\s+\d+\]$/.test(k));
+
     if (targetKeys.length === 0) {
+      if (rangeKey) {
+        const rangeMatch = rangeKey.match(/^\[Line\s+(\d+)\s*\.\.\s*Line\s+\d+\]$/);
+        if (rangeMatch) {
+          const startLine = parseInt(rangeMatch[1], 10) - 1;
+          return new vscode.Position(Math.max(0, startLine), 0);
+        }
+      }
       return new vscode.Position(0, 0);
     }
 
@@ -762,43 +772,42 @@ export class NodeNavigator {
       return new vscode.Position(0, 0);
     }
 
-    // Target key prefix or full key
-    const joinedUnderscore = rawKeys.join('_');
-    const joinedDot = rawKeys.join('.');
+    // Build regex allowing both '_' and '.' as segment delimiters
+    const segmentPattern = rawKeys.map((k) => this.escapeRegExp(k)).join('[._]');
     const leafName = rawKeys[rawKeys.length - 1];
 
     const lines = text.split(/\r?\n/);
 
     // 1. Try exact full key match: KEY= or export KEY=
-    const exactRegexUnderscore = new RegExp(`^(?:\\s*export\\s+)?${this.escapeRegExp(joinedUnderscore)}\\s*=`);
-    const exactRegexDot = new RegExp(`^(?:\\s*export\\s+)?${this.escapeRegExp(joinedDot)}\\s*=`);
+    const exactRegex = new RegExp(`^(?:\\s*export\\s+)?${segmentPattern}\\s*=`);
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      if (exactRegexUnderscore.test(line) || exactRegexDot.test(line)) {
+      if (exactRegex.test(line)) {
         const col = Math.max(0, line.indexOf(leafName));
         return new vscode.Position(i, col);
       }
     }
 
-    // 2. Try prefix match for group nodes: GROUP_...= or GROUP....=
-    const prefixRegexUnderscore = new RegExp(`^(?:\\s*export\\s+)?${this.escapeRegExp(joinedUnderscore)}[_.].*=`);
+    // 2. Try prefix match for group nodes: GROUP[_.].*=
+    const prefixRegex = new RegExp(`^(?:\\s*export\\s+)?${segmentPattern}[_.].*=`);
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      if (prefixRegexUnderscore.test(line)) {
+      if (prefixRegex.test(line)) {
         const col = Math.max(0, line.indexOf(leafName));
         return new vscode.Position(i, col);
       }
     }
 
-    // 3. Fallback: match leaf name before '='
+    // 3. Fallback: match leaf segment bounded by segment boundaries before '='
+    const leafBoundaryRegex = new RegExp(`(^|[._\\s])${this.escapeRegExp(leafName)}([._\\s=]|$)`);
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const eqIdx = line.indexOf('=');
       if (eqIdx !== -1) {
         const keyPart = line.slice(0, eqIdx);
-        if (keyPart.includes(leafName)) {
-          return new vscode.Position(i, keyPart.indexOf(leafName));
+        if (leafBoundaryRegex.test(keyPart)) {
+          return new vscode.Position(i, Math.max(0, keyPart.indexOf(leafName)));
         }
       }
     }

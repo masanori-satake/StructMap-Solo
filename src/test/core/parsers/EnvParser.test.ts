@@ -109,6 +109,7 @@ suite('EnvParser Test Suite', () => {
       SINGLE='quoted value'
       DOUBLE="hello\\nworld"
       ESCAPED="quote \\" test"
+      LITERAL="slash \\\\n keep"
     `;
     const tree = getTree(parser.parse(content, '.env'));
 
@@ -122,6 +123,33 @@ suite('EnvParser Test Suite', () => {
 
     const escapedNode = tree.root.children.find((n: StructNode) => n.name === 'ESCAPED');
     assert.strictEqual(escapedNode?.value, 'quote " test');
+
+    const literalNode = tree.root.children.find((n: StructNode) => n.name === 'LITERAL');
+    assert.strictEqual(literalNode?.value, 'slash \\n keep');
+  });
+
+  test('行末コメント除去および既存値ノードの保持', () => {
+    const content = `
+      UNQUOTED=12345 # this is a comment
+      QUOTED="hello # inside" # this is outside
+      LOG=foo
+      LOG_LEVEL=debug
+    `;
+    const tree = getTree(parser.parse(content, '.env'));
+
+    const unquotedNode = tree.root.children.find((n: StructNode) => n.name === 'UNQUOTED');
+    assert.strictEqual(unquotedNode?.value, 12345);
+    assert.strictEqual(unquotedNode?.valueType, 'number');
+
+    const quotedNode = tree.root.children.find((n: StructNode) => n.name === 'QUOTED');
+    assert.strictEqual(quotedNode?.value, 'hello # inside');
+    assert.strictEqual(quotedNode?.valueType, 'string');
+
+    const logNode = tree.root.children.find((n: StructNode) => n.name === 'LOG');
+    assert.ok(logNode);
+    assert.strictEqual(logNode?.nodeType, 'object');
+    assert.strictEqual(logNode?.value, 'foo');
+    assert.strictEqual(logNode?.children.find((n: StructNode) => n.name === 'LEVEL')?.value, 'debug');
   });
 
 });

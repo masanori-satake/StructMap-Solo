@@ -28,15 +28,55 @@ function unescapeEnvValue(val: string): string {
       // Single quotes: raw content without escape processing
       return inner;
     }
-    // Double quotes: unescape \n, \r, \t, \", \\
-    return inner
-      .replace(/\\n/g, '\n')
-      .replace(/\\r/g, '\r')
-      .replace(/\\t/g, '\t')
-      .replace(/\\"/g, '"')
-      .replace(/\\\\/g, '\\');
+    // Double quotes: single-pass unescape of \n, \r, \t, \", \\
+    return inner.replace(/\\([nrt"\\])/g, (_, esc) => {
+      switch (esc) {
+        case 'n': return '\n';
+        case 'r': return '\r';
+        case 't': return '\t';
+        case '"': return '"';
+        case '\\': return '\\';
+        default: return esc;
+      }
+    });
   }
   return val;
+}
+
+/**
+ * Strips inline comments while respecting quotes.
+ */
+function stripInlineComment(val: string): string {
+  const trimmed = val.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  // Quoted value
+  if (trimmed.startsWith('"') || trimmed.startsWith("'")) {
+    const quote = trimmed[0];
+    let endQuoteIdx = -1;
+    for (let i = 1; i < trimmed.length; i++) {
+      if (trimmed[i] === '\\' && quote === '"') {
+        i++; // Skip escaped character
+        continue;
+      }
+      if (trimmed[i] === quote) {
+        endQuoteIdx = i;
+        break;
+      }
+    }
+
+    if (endQuoteIdx !== -1) {
+      const quotedPart = trimmed.slice(0, endQuoteIdx + 1);
+      // Remainder after closing quote may contain comment
+      return quotedPart;
+    }
+  }
+
+  // Unquoted value: remove trailing whitespace + # comment
+  const commentMatch = trimmed.match(/^([^#]*?)(?:\s+#.*)?$/);
+  return commentMatch ? commentMatch[1].trim() : trimmed;
 }
 
 /**
@@ -46,7 +86,8 @@ function inferEnvValue(rawValue: string): {
   parsedValue: string | number | boolean | null;
   valueType: ValueType;
 } {
-  const trimmed = rawValue.trim();
+  const cleanValue = stripInlineComment(rawValue);
+  const trimmed = cleanValue.trim();
 
   // If originally quoted, treat as string
   if (
@@ -219,10 +260,8 @@ export class EnvParser {
           };
           curr.children.push(existingChild);
         } else if (existingChild.nodeType === 'value') {
-          // If a value node exists at intermediate position, convert to object
+          // If a value node exists at intermediate position, convert to object while retaining value
           existingChild.nodeType = 'object';
-          existingChild.value = undefined;
-          existingChild.valueType = undefined;
         }
         curr = existingChild;
         path = nextPath;

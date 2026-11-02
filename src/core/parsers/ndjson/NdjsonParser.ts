@@ -156,6 +156,11 @@ export class NdjsonParser {
         lineNode.nodeType = 'array';
       } else {
         lineNode.nodeType = 'value';
+        if (lineNode.children && lineNode.children.length > 0 && lineNode.children[0].nodeType === 'value') {
+          lineNode.value = lineNode.children[0].value;
+          lineNode.valueType = lineNode.children[0].valueType;
+          lineNode.children = [];
+        }
       }
 
       updateChildPaths(lineNode, rootPath);
