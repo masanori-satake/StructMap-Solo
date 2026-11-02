@@ -132,7 +132,7 @@ export class StructTreeItem extends vscode.TreeItem {
       this.iconPath = getIconForNodeType(node.nodeType);
       this.contextValue = 'structMapNodeItem';
 
-      if (node.nodeType === 'value' && node.value !== undefined) {
+      if (node.value !== undefined && node.nodeType !== 'root') {
         this.description = String(node.value);
       }
 

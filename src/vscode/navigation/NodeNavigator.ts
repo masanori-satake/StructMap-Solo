@@ -778,8 +778,8 @@ export class NodeNavigator {
 
     const lines = text.split(/\r?\n/);
 
-    // 1. Try exact full key match: KEY= or export KEY=
-    const exactRegex = new RegExp(`^(?:\\s*export\\s+)?${segmentPattern}\\s*=`);
+    // 1. Try exact full key match: KEY= or export KEY= (allowing leading whitespace)
+    const exactRegex = new RegExp(`^\\s*(?:export\\s+)?${segmentPattern}\\s*=`);
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -789,8 +789,8 @@ export class NodeNavigator {
       }
     }
 
-    // 2. Try prefix match for group nodes: GROUP[_.].*=
-    const prefixRegex = new RegExp(`^(?:\\s*export\\s+)?${segmentPattern}[_.].*=`);
+    // 2. Try prefix match for group nodes: GROUP[_.].*= (allowing leading whitespace)
+    const prefixRegex = new RegExp(`^\\s*(?:export\\s+)?${segmentPattern}[_.].*=`);
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (prefixRegex.test(line)) {
