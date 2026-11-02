@@ -6,6 +6,8 @@
   "Frontmatter Parse Error": "フロントマター解析エラー",
   "XML Parse Error": "XML解析エラー",
   "TOML Parse Error": "TOML解析エラー",
+  "NDJSON Parse Error": "NDJSON解析エラー",
+  "Env Parse Error": "Env解析エラー",
   "Unsupported Format": "未対応のファイル形式",
   "Empty File": "空のファイル",
   "Parse Error": "解析エラー",

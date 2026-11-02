@@ -38,6 +38,10 @@ function getErrorDisplayLabel(error: ParseError): string {
       return t('XML Parse Error');
     case ParseErrorCode.TOML_PARSE_ERROR:
       return t('TOML Parse Error');
+    case ParseErrorCode.NDJSON_PARSE_ERROR:
+      return t('NDJSON Parse Error');
+    case ParseErrorCode.ENV_PARSE_ERROR:
+      return t('Env Parse Error');
     case ParseErrorCode.UNSUPPORTED_FORMAT:
       return t('Unsupported Format');
     case ParseErrorCode.EMPTY_FILE:
