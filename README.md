@@ -1,6 +1,6 @@
 # StructMap-Solo
 
-[![Version](https://img.shields.io/badge/version-v1.8.1-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-v1.9.0-blue.svg)](package.json)
 [![Visual Studio Marketplace](https://vsmarketplacebadges.dev/version/masanori-satake.structmap-solo.svg?label=Marketplace&color=blue)](https://marketplace.visualstudio.com/items?itemName=masanori-satake.structmap-solo)
 [![Open VSX](https://img.shields.io/open-vsx/v/masanori-satake/structmap-solo?label=Open%20VSX)](https://open-vsx.org/extension/masanori-satake/structmap-solo)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/masanori-satake/StructMap-Solo)](https://github.com/masanori-satake/StructMap-Solo/releases)
@@ -109,7 +109,7 @@ For VSCodium, Gitpod, Eclipse Theia, or environments configured with Open VSX:
 #### Method 3: Install from VSIX Package File (Offline / Manual)
 
 1. Go to the [GitHub Releases](https://github.com/masanori-satake/StructMap-Solo/releases) page.
-2. Download the `.vsix` file (e.g., `structmap-solo-1.8.1.vsix`) under Assets.
+2. Download the `.vsix` file (e.g., `structmap-solo-1.9.0.vsix`) under Assets.
 3. In VS Code Extensions view (`Ctrl+Shift+X`), click the **"..." (Views and More Actions)** icon at the top right, select **Install from VSIX...**, and choose the downloaded file.
 
 ---
@@ -328,7 +328,7 @@ VSCodium や Gitpod、Eclipse Theia など Open VSX を利用する環境の場�
 
 ##### 手順 1: VSIX ファイルのダウンロード
 1. 本リポジトリの [GitHub Releases](https://github.com/masanori-satake/StructMap-Solo/releases) ページにアクセスします。
-2. 最新リリースの **Assets** セクションから、`.vsix` ファイル（例: `structmap-solo-1.8.1.vsix`）をダウンロードします。
+2. 最新リリースの **Assets** セクションから、`.vsix` ファイル（例: `structmap-solo-1.9.0.vsix`）をダウンロードします。
 
 ##### 手順 2: VS Code へのインストール
 1. VS Code の拡張機能ビュー（`Ctrl+Shift+X` / `Cmd+Shift+X`）を開きます。
