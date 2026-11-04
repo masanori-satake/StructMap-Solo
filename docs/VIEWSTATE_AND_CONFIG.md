@@ -62,7 +62,7 @@ classDiagram
 | `structMap.maxArrayItems` | `number` | `50` | 配列要素を個別に表示する最大件数。超過時は Chunking ノード (`[1 .. 50]`) を展開生成。 |
 | `structMap.customMappings` | `object` | `{"*.toml": "toml"}` | ファイル名のグロブパターンとフォーマット（json, yaml, xml, toml, jsonschema, markdown）の紐付け設定。 |
 
-※`structMapSolo.customMappings` も後方互換性のため併せてサポートされています。
+※`structMapSolo.customMappings` は v1.9.0 で廃止されました。既存の設定は `structMap.customMappings` に移行してください。
 
 ---
 

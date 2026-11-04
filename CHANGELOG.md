@@ -2,6 +2,14 @@
 
 "StructMap-Solo" 拡張機能のすべての注目すべき変更はこのファイルに記録されます。
 
+## [1.9.0] - 2026-11-04
+
+### 削除 (Removed)
+- **重複していた設定項目 `structMapSolo.customMappings` を削除**:
+  - `structMap.customMappings` と同一定義の重複項目が設定画面に並んでいたものを解消し、`structMap.*` への一本化を行った
+  - コード側に残っていた `structMapSolo` へのフォールバック読みもあわせて削除した（`structMap` 側にデフォルト値があるため実質的には機能していなかった互換措置の整理）
+  - `settings.json` に `structMapSolo.customMappings` を記述している場合は、今後は `structMap.customMappings` への移行が必要
+
 ## [1.8.1] - 2026-11-02
 
 ### セキュリティ (Security)

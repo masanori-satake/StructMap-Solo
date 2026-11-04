@@ -18,8 +18,7 @@ export function updateTypesSupportedContext(
   structMapService: StructMapService
 ): Thenable<unknown> {
   const customMappings = editor && editor.document
-    ? (vscode.workspace.getConfiguration('structMap', editor.document.uri).get<Record<string, string>>('customMappings') ||
-       vscode.workspace.getConfiguration('structMapSolo', editor.document.uri).get<Record<string, string>>('customMappings'))
+    ? vscode.workspace.getConfiguration('structMap', editor.document.uri).get<Record<string, string>>('customMappings')
     : undefined;
   const isSupported =
     editor && editor.document
@@ -52,14 +51,9 @@ function getStructMapConfig(documentUri?: vscode.Uri): {
   const config = vscode.workspace?.getConfiguration
     ? vscode.workspace.getConfiguration('structMap', documentUri)
     : undefined;
-  const configSolo = vscode.workspace?.getConfiguration
-    ? vscode.workspace.getConfiguration('structMapSolo', documentUri)
-    : undefined;
   const maxFileSizeMB = config ? config.get<number>('maxFileSizeMB', 5) : 5;
   const maxArrayItems = config ? config.get<number>('maxArrayItems', 50) : 50;
-  const customMappings =
-    (config ? config.get<Record<string, string>>('customMappings') : undefined) ||
-    (configSolo ? configSolo.get<Record<string, string>>('customMappings') : undefined);
+  const customMappings = config ? config.get<Record<string, string>>('customMappings') : undefined;
   return { maxFileSizeMB, maxArrayItems, customMappings };
 }
 
@@ -206,8 +200,7 @@ export function registerCommands(
     vscode.commands.registerCommand('structmap-solo.toggleTypes', async () => {
       const editor = vscode.window.activeTextEditor;
       const customMappings = editor && editor.document
-        ? (vscode.workspace.getConfiguration('structMap', editor.document.uri).get<Record<string, string>>('customMappings') ||
-           vscode.workspace.getConfiguration('structMapSolo', editor.document.uri).get<Record<string, string>>('customMappings'))
+        ? vscode.workspace.getConfiguration('structMap', editor.document.uri).get<Record<string, string>>('customMappings')
         : undefined;
       if (
         !editor ||
