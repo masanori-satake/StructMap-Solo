@@ -389,11 +389,14 @@ export class XmlParser {
         if (ch === inQuote) inQuote = null;
       } else if (ch === '"' || ch === "'") {
         inQuote = ch;
+      } else if (trackBrackets && content.startsWith('<?', i)) {
+        const piEnd = content.indexOf('?>', i + 2);
+        if (piEnd === -1) return -1;
+        i = piEnd + 1;
       } else if (trackBrackets && content.startsWith('<!--', i)) {
         const commentEnd = content.indexOf('-->', i + 4);
-        if (commentEnd !== -1) {
-          i = commentEnd + 2;
-        }
+        if (commentEnd === -1) return -1;
+        i = commentEnd + 2;
       } else if (trackBrackets && ch === '[') {
         bracketDepth++;
       } else if (trackBrackets && ch === ']' && bracketDepth > 0) {
