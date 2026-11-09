@@ -170,6 +170,61 @@ suite('XmlParser Test Suite', () => {
     assert.ok(result.line !== undefined);
   });
 
+  test('safely skips DOCTYPE with internal DTD subsets containing quotes and brackets', () => {
+    const xmlWithDtd = `<!DOCTYPE note [
+      <?pi-target test instruction with > and [ ?>
+      <!ENTITY author "John > Doe">
+      <!ELEMENT note (to,from,body)>
+      <note>fake_spoofed_node</note>
+    ]>
+    <note>
+      <to>Alice</to>
+      <from>Bob</from>
+    </note>`;
+    const result = xmlParser.parse(xmlWithDtd, 'dtd.xml');
+    assert.ok(isParseSuccess(result));
+    const rootChildren = result.tree.root.children;
+    // The fake_spoofed_node inside DTD should NOT leak as a root or child element
+    assert.strictEqual(rootChildren.length, 1);
+    assert.strictEqual(rootChildren[0].name, 'note');
+    assert.strictEqual(rootChildren[0].children.length, 2);
+    assert.strictEqual(rootChildren[0].children[0].name, 'to');
+    assert.strictEqual(rootChildren[0].children[0].value, 'Alice');
+  });
+
+  test('safely handles comments with open or close brackets in DTD individually', () => {
+    const xmlOpen = `<!DOCTYPE note [
+      <!-- [ open bracket and > inside comment -->
+      <!ENTITY val "1">
+    ]><note>open</note>`;
+    const resOpen = xmlParser.parse(xmlOpen, 'open.xml');
+    assert.ok(isParseSuccess(resOpen));
+    assert.strictEqual(resOpen.tree.root.children[0].name, 'note');
+    assert.strictEqual(resOpen.tree.root.children[0].value, 'open');
+
+    const xmlClose = `<!DOCTYPE note [
+      <!-- ] close bracket inside comment -->
+      <!ENTITY val "2">
+    ]><note>close</note>`;
+    const resClose = xmlParser.parse(xmlClose, 'close.xml');
+    assert.ok(isParseSuccess(resClose));
+    assert.strictEqual(resClose.tree.root.children[0].name, 'note');
+    assert.strictEqual(resClose.tree.root.children[0].value, 'close');
+  });
+
+  test('returns ParseError on unclosed DOCTYPE declaration', () => {
+    const unclosedDtd = '<!DOCTYPE note [ <!ENTITY test "val"> \n<note>Unclosed</note>';
+    const result = xmlParser.parse(unclosedDtd, 'unclosed.xml');
+    assert.ok(isParseError(result));
+    assert.strictEqual(result.code, ParseErrorCode.XML_PARSE_ERROR);
+    assert.ok(result.message.includes('Unclosed XML declaration'));
+
+    const unclosedCommentDtd = '<!DOCTYPE note [ <!-- unclosed comment ]><note>ok</note>';
+    const resComment = xmlParser.parse(unclosedCommentDtd, 'unclosed-comment.xml');
+    assert.ok(isParseError(resComment));
+    assert.strictEqual(resComment.code, ParseErrorCode.XML_PARSE_ERROR);
+  });
+
   test('StructMapService integrates XML parsing and supportsTypes', () => {
     assert.strictEqual(service.supportsTypes('file.xml'), true);
     assert.strictEqual(service.supportsTypes('file.json'), true);
