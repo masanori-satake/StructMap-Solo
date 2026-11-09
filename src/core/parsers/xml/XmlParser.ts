@@ -252,8 +252,10 @@ export class XmlParser {
       }
 
       // Check for DOCTYPE or other <! declarations
+      // Security: Track quotes and bracket nesting to prevent premature tag closing
+      // inside DTD internal subsets ([...]), preventing parser desync and spoofed node injection.
       if (content.startsWith('<!', cursor)) {
-        const closeIdx = this.findTagClosingBracket(content, cursor);
+        const closeIdx = this.findDeclarationClosingBracket(content, cursor);
         if (closeIdx === -1) {
           const { line, column } = getLineAndColFromOffset(content, cursor);
           const err = new Error('Unclosed XML declaration') as XmlParseInternalError;
@@ -366,20 +368,33 @@ export class XmlParser {
    * Finds the closing bracket '>' of an XML tag, ignoring '>' inside quotes.
    */
   private findTagClosingBracket(content: string, startIdx: number): number {
+    return this.findBracket(content, startIdx, false);
+  }
+
+  /**
+   * Finds the closing bracket '>' of an XML declaration (e.g. <!DOCTYPE ...>),
+   * respecting quotes and nested DTD internal subsets ([...]) to prevent premature closing.
+   */
+  private findDeclarationClosingBracket(content: string, startIdx: number): number {
+    return this.findBracket(content, startIdx, true);
+  }
+
+  private findBracket(content: string, startIdx: number, trackBrackets: boolean): number {
     let inQuote: string | null = null;
+    let bracketDepth = 0;
     const len = content.length;
     for (let i = startIdx; i < len; i++) {
       const ch = content[i];
       if (inQuote !== null) {
-        if (ch === inQuote) {
-          inQuote = null;
-        }
-      } else {
-        if (ch === '"' || ch === "'") {
-          inQuote = ch;
-        } else if (ch === '>') {
-          return i;
-        }
+        if (ch === inQuote) inQuote = null;
+      } else if (ch === '"' || ch === "'") {
+        inQuote = ch;
+      } else if (trackBrackets && ch === '[') {
+        bracketDepth++;
+      } else if (trackBrackets && ch === ']' && bracketDepth > 0) {
+        bracketDepth--;
+      } else if (ch === '>' && bracketDepth === 0) {
+        return i;
       }
     }
     return -1;

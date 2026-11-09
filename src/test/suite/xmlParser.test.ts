@@ -170,6 +170,35 @@ suite('XmlParser Test Suite', () => {
     assert.ok(result.line !== undefined);
   });
 
+  test('safely skips DOCTYPE with internal DTD subsets containing quotes and brackets', () => {
+    const xmlWithDtd = `<!DOCTYPE note [
+      <!ENTITY author "John > Doe">
+      <!ELEMENT note (to,from,body)>
+      <note>fake_spoofed_node</note>
+    ]>
+    <note>
+      <to>Alice</to>
+      <from>Bob</from>
+    </note>`;
+    const result = xmlParser.parse(xmlWithDtd, 'dtd.xml');
+    assert.ok(isParseSuccess(result));
+    const rootChildren = result.tree.root.children;
+    // The fake_spoofed_node inside DTD should NOT leak as a root or child element
+    assert.strictEqual(rootChildren.length, 1);
+    assert.strictEqual(rootChildren[0].name, 'note');
+    assert.strictEqual(rootChildren[0].children.length, 2);
+    assert.strictEqual(rootChildren[0].children[0].name, 'to');
+    assert.strictEqual(rootChildren[0].children[0].value, 'Alice');
+  });
+
+  test('returns ParseError on unclosed DOCTYPE declaration', () => {
+    const unclosedDtd = '<!DOCTYPE note [ <!ENTITY test "val"> \n<note>Unclosed</note>';
+    const result = xmlParser.parse(unclosedDtd, 'unclosed.xml');
+    assert.ok(isParseError(result));
+    assert.strictEqual(result.code, ParseErrorCode.XML_PARSE_ERROR);
+    assert.ok(result.message.includes('Unclosed XML declaration'));
+  });
+
   test('StructMapService integrates XML parsing and supportsTypes', () => {
     assert.strictEqual(service.supportsTypes('file.xml'), true);
     assert.strictEqual(service.supportsTypes('file.json'), true);
