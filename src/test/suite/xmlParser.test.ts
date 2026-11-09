@@ -172,6 +172,8 @@ suite('XmlParser Test Suite', () => {
 
   test('safely skips DOCTYPE with internal DTD subsets containing quotes and brackets', () => {
     const xmlWithDtd = `<!DOCTYPE note [
+      <!-- [ comment with open bracket and > bracket -->
+      <!-- ] comment with close bracket -->
       <!ENTITY author "John > Doe">
       <!ELEMENT note (to,from,body)>
       <note>fake_spoofed_node</note>
