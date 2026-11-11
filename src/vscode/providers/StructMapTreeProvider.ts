@@ -171,22 +171,31 @@ export class StructMapTreeProvider implements vscode.TreeDataProvider<StructTree
     private readonly viewStateManager?: ViewStateManager
   ) {}
 
+  /**
+   * Computes a stable key identifying a document, for comparisons in
+   * forgetDocument.
+   */
   private static documentKey(document: vscode.TextDocument): string {
     return document.uri ? document.uri.toString() : document.fileName;
   }
 
   /**
-   * Returns the document the tree should show.
+   * Returns the document the tree should show, without changing any state.
    *
-   * When a text editor is active, that editor's document is the target and
-   * is remembered. When no text editor is active — for example while the
-   * Markdown preview (a webview) has focus — the last target document is
+   * When a text editor is active, that editor's document is the target.
+   * When no text editor is active — for example while the Markdown
+   * preview (a webview) has focus — the retained target document is
    * returned instead, so the tree is not cleared by a preview click.
+   *
+   * This is a pure read: the retained document is only updated when the
+   * tree itself is (re)built in getChildren, so merely inspecting the
+   * target (e.g. from a document-change event for another document)
+   * cannot silently retarget the tree or the copy commands.
    */
   public getTargetDocument(): vscode.TextDocument | undefined {
     const activeEditor = this.getActiveTextEditor();
     if (activeEditor && activeEditor.document) {
-      this.lastDocument = activeEditor.document;
+      return activeEditor.document;
     }
     return this.lastDocument;
   }
@@ -239,6 +248,9 @@ export class StructMapTreeProvider implements vscode.TreeDataProvider<StructTree
 
     if (!element) {
       const targetDocument = this.getTargetDocument();
+      // Building the tree is what establishes its target: retain the
+      // document so it survives later focus moves to non-text editors.
+      this.lastDocument = targetDocument;
       if (!targetDocument) {
         return [
           StructTreeItem.createError(

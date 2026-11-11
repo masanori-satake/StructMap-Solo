@@ -57,7 +57,7 @@ suite('Extension automatic refresh', () => {
               refresh() { refreshes++; }
               getChildren() { return []; }
               getTargetDocument() { return document; }
-              forgetDocument() { return false; }
+              forgetDocument(closed: object) { return closed === document; }
             },
             ViewStateManager: class { getState() { return { showTypes: true, showRoot: true, treeStyle: 'unicode' }; } },
             NodeNavigator: class {},
@@ -87,6 +87,8 @@ suite('Extension automatic refresh', () => {
       switchEditor: () => editors.fire({ document: otherDocument }),
       switchToPreview: () => editors.fire(undefined),
       switchBackToSameEditor: () => editors.fire({ document }),
+      close: (closedDocument: object = document) => closes.fire(closedDocument),
+      otherDocument,
       get refreshes() { return refreshes; },
       advance: (ms: number) => {
         now += ms;
@@ -167,6 +169,33 @@ suite('Extension automatic refresh', () => {
     harness.switchToPreview();
     harness.advance(100);
     assert.strictEqual(harness.refreshes, 1);
+  });
+
+  test('switching editors with autoRefresh disabled does not record the new target', () => {
+    harness.settings.autoRefresh = false;
+    harness.switchEditor();
+    assert.strictEqual(harness.refreshes, 0);
+    // Because the switch was not recorded while autoRefresh was off,
+    // the same switch redraws once autoRefresh is enabled again.
+    harness.settings.autoRefresh = true;
+    harness.switchEditor();
+    assert.strictEqual(harness.refreshes, 1);
+  });
+
+  test('closing the retained document refreshes the tree', () => {
+    harness.close();
+    assert.strictEqual(harness.refreshes, 1);
+  });
+
+  test('closing the retained document does not refresh when autoRefresh is disabled', () => {
+    harness.settings.autoRefresh = false;
+    harness.close();
+    assert.strictEqual(harness.refreshes, 0);
+  });
+
+  test('closing a different document does not refresh the tree', () => {
+    harness.close(harness.otherDocument);
+    assert.strictEqual(harness.refreshes, 0);
   });
 
   test('disposal cancels pending refreshes', () => {

@@ -82,6 +82,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   };
 
+  // Stable key identifying a document, used to compare editor documents.
   const documentKey = (document: vscode.TextDocument): string =>
     document.uri ? document.uri.toString() : document.fileName;
 
@@ -119,12 +120,17 @@ export function activate(context: vscode.ExtensionContext): void {
         // from its preview). Nothing needs to be redrawn.
         return;
       }
-      lastTargetKey = key;
       cancelPendingRefresh();
       const config = vscode.workspace.getConfiguration('structMap', editor.document.uri);
       if (!config.get<boolean>('autoRefresh', true)) {
+        // The tree keeps showing the previous document. Do not record
+        // the new document as the target either, so that a later editor
+        // change can still redraw it once autoRefresh is enabled again.
+        // This keeps lastTargetKey in sync with the provider's retained
+        // document, which only changes when the tree is redrawn.
         return;
       }
+      lastTargetKey = key;
       treeExpansionState.clear();
       syncInitialExpansionState();
       treeDataProvider.refresh();
@@ -134,6 +140,13 @@ export function activate(context: vscode.ExtensionContext): void {
         lastTargetKey = undefined;
       }
       if (treeDataProvider.forgetDocument(document)) {
+        // Forgetting the retained document always happens, but the
+        // automatic redraw follows the autoRefresh setting, as with
+        // editor changes and edits.
+        const config = vscode.workspace.getConfiguration('structMap', document.uri);
+        if (!config.get<boolean>('autoRefresh', true)) {
+          return;
+        }
         treeExpansionState.clear();
         treeDataProvider.refresh();
       }
