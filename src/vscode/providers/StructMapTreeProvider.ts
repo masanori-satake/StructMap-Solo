@@ -162,12 +162,51 @@ export class StructMapTreeProvider implements vscode.TreeDataProvider<StructTree
   public readonly onDidChangeTreeData: vscode.Event<StructTreeItem | undefined | null | void> =
     this._onDidChangeTreeData.event;
 
+  private lastDocument: vscode.TextDocument | undefined;
+
   constructor(
     private readonly structMapService: StructMapService,
     private readonly getActiveTextEditor: () => vscode.TextEditor | undefined = () =>
       vscode.window.activeTextEditor,
     private readonly viewStateManager?: ViewStateManager
   ) {}
+
+  private static documentKey(document: vscode.TextDocument): string {
+    return document.uri ? document.uri.toString() : document.fileName;
+  }
+
+  /**
+   * Returns the document the tree should show.
+   *
+   * When a text editor is active, that editor's document is the target and
+   * is remembered. When no text editor is active — for example while the
+   * Markdown preview (a webview) has focus — the last target document is
+   * returned instead, so the tree is not cleared by a preview click.
+   */
+  public getTargetDocument(): vscode.TextDocument | undefined {
+    const activeEditor = this.getActiveTextEditor();
+    if (activeEditor && activeEditor.document) {
+      this.lastDocument = activeEditor.document;
+    }
+    return this.lastDocument;
+  }
+
+  /**
+   * Forgets the remembered target document if it matches the given document
+   * (e.g. because that document was closed). Returns true when the
+   * remembered target was cleared.
+   */
+  public forgetDocument(document: vscode.TextDocument): boolean {
+    if (
+      this.lastDocument &&
+      StructMapTreeProvider.documentKey(this.lastDocument) ===
+        StructMapTreeProvider.documentKey(document)
+    ) {
+      this.lastDocument = undefined;
+      return true;
+    }
+    return false;
+  }
 
   /**
    * Triggers a refresh of the TreeView.
@@ -199,8 +238,8 @@ export class StructMapTreeProvider implements vscode.TreeDataProvider<StructTree
       : DEFAULT_VIEW_STATE;
 
     if (!element) {
-      const activeEditor = this.getActiveTextEditor();
-      if (!activeEditor || !activeEditor.document) {
+      const targetDocument = this.getTargetDocument();
+      if (!targetDocument) {
         return [
           StructTreeItem.createError(
             vscode.l10n?.t ? vscode.l10n.t('No Active Editor') : 'No Active Editor'
@@ -208,11 +247,11 @@ export class StructMapTreeProvider implements vscode.TreeDataProvider<StructTree
         ];
       }
 
-      const fileName = activeEditor.document.fileName;
-      const content = activeEditor.document.getText();
+      const fileName = targetDocument.fileName;
+      const content = targetDocument.getText();
 
       const config = vscode.workspace?.getConfiguration
-        ? vscode.workspace.getConfiguration('structMap', activeEditor.document.uri)
+        ? vscode.workspace.getConfiguration('structMap', targetDocument.uri)
         : undefined;
       const maxFileSizeMB = config ? config.get<number>('maxFileSizeMB', 5) : 5;
       const maxArrayItems = config ? config.get<number>('maxArrayItems', 50) : 50;

@@ -82,6 +82,16 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   };
 
+  const documentKey = (document: vscode.TextDocument): string =>
+    document.uri ? document.uri.toString() : document.fileName;
+
+  // Key of the document the tree currently targets. Used to tell a real
+  // document switch apart from a temporary focus move to a non-text editor
+  // such as the Markdown preview, which must leave the tree untouched.
+  let lastTargetKey: string | undefined = vscode.window.activeTextEditor?.document
+    ? documentKey(vscode.window.activeTextEditor.document)
+    : undefined;
+
   context.subscriptions.push(
     treeView,
     treeView.onDidExpandElement((e) => {
@@ -96,23 +106,43 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     new vscode.Disposable(cancelPendingRefresh),
     vscode.window.onDidChangeActiveTextEditor((editor) => {
-      cancelPendingRefresh();
+      if (!editor || !editor.document) {
+        // A non-text editor (Markdown preview, settings, webview, ...)
+        // became active. Keep the current tree, its expansion state and
+        // the types context exactly as they are.
+        return;
+      }
       updateTypesSupportedContext(editor, structMapService);
-      if (editor && editor.document) {
-        const config = vscode.workspace.getConfiguration('structMap', editor.document.uri);
-        if (!config.get<boolean>('autoRefresh', true)) {
-          return;
-        }
+      const key = documentKey(editor.document);
+      if (key === lastTargetKey) {
+        // Back to the document the tree already shows (e.g. returning
+        // from its preview). Nothing needs to be redrawn.
+        return;
+      }
+      lastTargetKey = key;
+      cancelPendingRefresh();
+      const config = vscode.workspace.getConfiguration('structMap', editor.document.uri);
+      if (!config.get<boolean>('autoRefresh', true)) {
+        return;
       }
       treeExpansionState.clear();
       syncInitialExpansionState();
       treeDataProvider.refresh();
     }),
+    vscode.workspace.onDidCloseTextDocument((document) => {
+      if (documentKey(document) === lastTargetKey) {
+        lastTargetKey = undefined;
+      }
+      if (treeDataProvider.forgetDocument(document)) {
+        treeExpansionState.clear();
+        treeDataProvider.refresh();
+      }
+    }),
     vscode.workspace.onDidChangeTextDocument((e) => {
-      if (
-        vscode.window.activeTextEditor &&
-        e.document === vscode.window.activeTextEditor.document
-      ) {
+      const isTargetDocument =
+        e.document === vscode.window.activeTextEditor?.document ||
+        e.document === treeDataProvider.getTargetDocument();
+      if (isTargetDocument) {
         cancelPendingRefresh();
         const config = vscode.workspace.getConfiguration('structMap', e.document.uri);
         if (!config.get<boolean>('autoRefresh', true)) {
@@ -121,7 +151,8 @@ export function activate(context: vscode.ExtensionContext): void {
         refreshTimer = setTimeout(() => {
           refreshTimer = undefined;
           if (
-            e.document === vscode.window.activeTextEditor?.document &&
+            (e.document === vscode.window.activeTextEditor?.document ||
+              e.document === treeDataProvider.getTargetDocument()) &&
             vscode.workspace.getConfiguration('structMap', e.document.uri)
               .get<boolean>('autoRefresh', true)
           ) {

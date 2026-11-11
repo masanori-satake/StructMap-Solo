@@ -397,6 +397,91 @@ suite('Commands & ViewState Integration Test Suite', () => {
     }
   });
 
+  test('copyTree uses the retained target document while the preview has focus', async () => {
+    const handlers = new Map<string, () => Promise<void>>();
+    const buildCalls: string[] = [];
+
+    const originalRegister = vscode.commands.registerCommand;
+    const originalBuild = structMapService.build.bind(structMapService);
+    const originalActiveTextEditorDescriptor = Object.getOwnPropertyDescriptor(
+      vscode.window,
+      'activeTextEditor'
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (vscode.commands as any).registerCommand = (command: string, callback: (...args: any[]) => any) => {
+      handlers.set(command, callback);
+      return { dispose: () => {} };
+    };
+    structMapService.build = (
+      fileName: string,
+      content: string,
+      maxFileSizeMB?: number,
+      maxArrayItems?: number,
+      mappings?: Record<string, string>
+    ) => {
+      buildCalls.push(fileName);
+      return originalBuild(fileName, content, maxFileSizeMB, maxArrayItems, mappings);
+    };
+
+    const mockDocument = {
+      fileName: 'sample.md',
+      uri: vscode.Uri.file('/tmp/sample.md'),
+      getText: () => '# Title\n## Subtitle',
+    } as unknown as vscode.TextDocument;
+    let activeEditor: vscode.TextEditor | undefined = {
+      document: mockDocument,
+    } as vscode.TextEditor;
+    const provider = new StructMapTreeProvider(
+      structMapService,
+      () => activeEditor,
+      viewStateManager
+    );
+    // Show the tree once so the document becomes the retained target.
+    provider.getChildren();
+    // Ignore the build triggered by showing the tree itself.
+    buildCalls.length = 0;
+
+    // Preview focus: no active text editor anywhere.
+    activeEditor = undefined;
+    Object.defineProperty(vscode.window, 'activeTextEditor', {
+      value: undefined,
+      configurable: true,
+    });
+
+    try {
+      const context = { subscriptions: [] } as unknown as vscode.ExtensionContext;
+      registerCommands(
+        context,
+        provider,
+        viewStateManager,
+        structMapService,
+        nodeNavigator
+      );
+
+      const copyTree = handlers.get('structmap-solo.copyTree');
+      const copyVisibleTree = handlers.get('structmap-solo.copyVisibleTree');
+      assert.ok(copyTree, 'copyTree command should be registered');
+      assert.ok(copyVisibleTree, 'copyVisibleTree command should be registered');
+
+      await copyTree();
+      await copyVisibleTree();
+
+      assert.deepStrictEqual(buildCalls, ['sample.md', 'sample.md']);
+      const clipboardText = await vscode.env.clipboard.readText();
+      assert.ok(clipboardText.includes('Title'));
+    } finally {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (vscode.commands as any).registerCommand = originalRegister;
+      structMapService.build = originalBuild;
+      if (originalActiveTextEditorDescriptor) {
+        Object.defineProperty(vscode.window, 'activeTextEditor', originalActiveTextEditorDescriptor);
+      } else {
+        Reflect.deleteProperty(vscode.window, 'activeTextEditor');
+      }
+    }
+  });
+
   test('copyTree and copyVisibleTree both pass structMap.customMappings to the parser', async () => {
     const handlers = new Map<string, () => Promise<void>>();
     const customMappings = { '*.custom': 'json' };
