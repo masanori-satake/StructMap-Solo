@@ -482,6 +482,133 @@ suite('Commands & ViewState Integration Test Suite', () => {
     }
   });
 
+  test('jumpToNode jumps to the retained target while the preview has focus', async () => {
+    const handlers = new Map<string, (...args: unknown[]) => unknown>();
+    const jumpCalls: Array<{ editor: unknown; node: unknown }> = [];
+    const showCalls: Array<{ document: unknown; options: unknown }> = [];
+
+    const originalRegister = vscode.commands.registerCommand;
+    const originalShowTextDocument = vscode.window.showTextDocument;
+    const originalActiveTextEditorDescriptor = Object.getOwnPropertyDescriptor(
+      vscode.window,
+      'activeTextEditor'
+    );
+    const originalVisibleTextEditorsDescriptor = Object.getOwnPropertyDescriptor(
+      vscode.window,
+      'visibleTextEditors'
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (vscode.commands as any).registerCommand = (command: string, callback: (...args: any[]) => any) => {
+      handlers.set(command, callback);
+      return { dispose: () => {} };
+    };
+
+    const mockDocument = {
+      fileName: 'sample.md',
+      uri: vscode.Uri.file('/tmp/sample.md'),
+      getText: () => '# Title\n## Subtitle',
+    } as unknown as vscode.TextDocument;
+    let activeEditor: vscode.TextEditor | undefined = {
+      document: mockDocument,
+    } as vscode.TextEditor;
+    const provider = new StructMapTreeProvider(
+      structMapService,
+      () => activeEditor,
+      viewStateManager
+    );
+    // Show the tree once so the document becomes the retained target.
+    provider.getChildren();
+
+    // Preview focus: no active text editor anywhere.
+    activeEditor = undefined;
+    Object.defineProperty(vscode.window, 'activeTextEditor', {
+      value: undefined,
+      configurable: true,
+    });
+
+    const visibleEditor = { document: mockDocument } as unknown as vscode.TextEditor;
+    const openedEditor = { document: mockDocument } as unknown as vscode.TextEditor;
+    let visibleEditors: vscode.TextEditor[] = [visibleEditor];
+    Object.defineProperty(vscode.window, 'visibleTextEditors', {
+      get: () => visibleEditors,
+      configurable: true,
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (vscode.window as any).showTextDocument = async (document: unknown, options: unknown) => {
+      showCalls.push({ document, options });
+      return openedEditor;
+    };
+
+    const fakeNavigator = {
+      jumpToNode: (editor: unknown, node: unknown) => {
+        jumpCalls.push({ editor, node });
+        return true;
+      },
+    } as unknown as NodeNavigator;
+
+    try {
+      const context = { subscriptions: [] } as unknown as vscode.ExtensionContext;
+      registerCommands(context, provider, viewStateManager, structMapService, fakeNavigator);
+
+      const jumpToNode = handlers.get('structmap-solo.jumpToNode');
+      assert.ok(jumpToNode, 'jumpToNode command should be registered');
+      const node = { name: 'Title' };
+
+      // Phase 1: the source editor is visible (side-by-side preview):
+      // jump in that editor without opening anything.
+      await jumpToNode(node);
+      assert.strictEqual(jumpCalls.length, 1);
+      assert.strictEqual(jumpCalls[0].editor, visibleEditor);
+      assert.strictEqual(showCalls.length, 0);
+
+      // Phase 2: the source editor is not visible (preview only):
+      // the source is opened beside and the jump lands there.
+      visibleEditors = [];
+      await jumpToNode(node);
+      assert.strictEqual(jumpCalls.length, 2);
+      assert.strictEqual(jumpCalls[1].editor, openedEditor);
+      assert.strictEqual(showCalls.length, 1);
+      assert.strictEqual(showCalls[0].document, mockDocument);
+      assert.deepStrictEqual(showCalls[0].options, {
+        viewColumn: vscode.ViewColumn.Beside,
+        preview: false,
+      });
+
+      // Phase 3: the same document is shown in two panes and one of them is
+      // active: jump in the active pane, not the first visible one.
+      const activePaneEditor = { document: mockDocument } as unknown as vscode.TextEditor;
+      Object.defineProperty(vscode.window, 'activeTextEditor', {
+        value: activePaneEditor,
+        configurable: true,
+      });
+      visibleEditors = [visibleEditor, activePaneEditor];
+      await jumpToNode(node);
+      assert.strictEqual(jumpCalls.length, 3);
+      assert.strictEqual(jumpCalls[2].editor, activePaneEditor);
+      assert.strictEqual(showCalls.length, 1);
+    } finally {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (vscode.commands as any).registerCommand = originalRegister;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (vscode.window as any).showTextDocument = originalShowTextDocument;
+      if (originalActiveTextEditorDescriptor) {
+        Object.defineProperty(vscode.window, 'activeTextEditor', originalActiveTextEditorDescriptor);
+      } else {
+        Reflect.deleteProperty(vscode.window, 'activeTextEditor');
+      }
+      if (originalVisibleTextEditorsDescriptor) {
+        Object.defineProperty(
+          vscode.window,
+          'visibleTextEditors',
+          originalVisibleTextEditorsDescriptor
+        );
+      } else {
+        Reflect.deleteProperty(vscode.window, 'visibleTextEditors');
+      }
+    }
+  });
+
   test('copyTree and copyVisibleTree both pass structMap.customMappings to the parser', async () => {
     const handlers = new Map<string, () => Promise<void>>();
     const customMappings = { '*.custom': 'json' };
