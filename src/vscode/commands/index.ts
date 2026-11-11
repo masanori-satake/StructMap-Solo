@@ -269,10 +269,17 @@ export function registerCommands(
         if (!targetDocument) {
           return;
         }
+        // Prefer the active editor when it shows the target document (the
+        // same document may be open in several panes); otherwise use any
+        // visible editor showing it.
+        const activeEditor = vscode.window.activeTextEditor;
         const visibleEditors = vscode.window.visibleTextEditors ?? [];
-        let editor = visibleEditors.find(
-          (candidate) => candidate.document === targetDocument
-        );
+        let editor =
+          activeEditor && activeEditor.document === targetDocument
+            ? activeEditor
+            : visibleEditors.find(
+                (candidate) => candidate.document === targetDocument
+              );
         if (!editor) {
           // The target document is not shown anywhere (e.g. only its preview
           // is open): open the source beside the current editor and jump.

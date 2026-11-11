@@ -574,6 +574,19 @@ suite('Commands & ViewState Integration Test Suite', () => {
         viewColumn: vscode.ViewColumn.Beside,
         preview: false,
       });
+
+      // Phase 3: the same document is shown in two panes and one of them is
+      // active: jump in the active pane, not the first visible one.
+      const activePaneEditor = { document: mockDocument } as unknown as vscode.TextEditor;
+      Object.defineProperty(vscode.window, 'activeTextEditor', {
+        value: activePaneEditor,
+        configurable: true,
+      });
+      visibleEditors = [visibleEditor, activePaneEditor];
+      await jumpToNode(node);
+      assert.strictEqual(jumpCalls.length, 3);
+      assert.strictEqual(jumpCalls[2].editor, activePaneEditor);
+      assert.strictEqual(showCalls.length, 1);
     } finally {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (vscode.commands as any).registerCommand = originalRegister;
