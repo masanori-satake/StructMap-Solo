@@ -57,6 +57,24 @@ function getStructMapConfig(documentUri?: vscode.Uri): {
   return { maxFileSizeMB, maxArrayItems, customMappings };
 }
 
+/**
+ * Resolves the document a command should operate on: the active text
+ * editor's document when there is one, otherwise the tree's remembered
+ * target document. The fallback lets commands keep working while a
+ * non-text editor such as the Markdown preview has focus.
+ */
+function resolveTargetDocument(
+  treeDataProvider: StructMapTreeProvider
+): vscode.TextDocument | undefined {
+  const activeDocument = vscode.window.activeTextEditor?.document;
+  if (activeDocument) {
+    return activeDocument;
+  }
+  return typeof treeDataProvider.getTargetDocument === 'function'
+    ? treeDataProvider.getTargetDocument()
+    : undefined;
+}
+
 export function registerCommands(
   context: vscode.ExtensionContext,
   treeDataProvider: StructMapTreeProvider,
@@ -68,8 +86,8 @@ export function registerCommands(
 ): void {
   context.subscriptions.push(
     vscode.commands.registerCommand('structmap-solo.copyTree', async () => {
-      const editor = vscode.window.activeTextEditor;
-      if (!editor || !editor.document) {
+      const document = resolveTargetDocument(treeDataProvider);
+      if (!document) {
         vscode.window.showWarningMessage(
           vscode.l10n?.t
             ? vscode.l10n.t('No active text editor to copy tree from.')
@@ -77,9 +95,9 @@ export function registerCommands(
         );
         return;
       }
-      const fileName = editor.document.fileName;
-      const content = editor.document.getText();
-      const { maxFileSizeMB, maxArrayItems, customMappings } = getStructMapConfig(editor.document.uri);
+      const fileName = document.fileName;
+      const content = document.getText();
+      const { maxFileSizeMB, maxArrayItems, customMappings } = getStructMapConfig(document.uri);
       const parseResult = structMapService.build(fileName, content, maxFileSizeMB, maxArrayItems, customMappings);
       if (!isParseSuccess(parseResult)) {
         vscode.window.showWarningMessage(
@@ -101,8 +119,8 @@ export function registerCommands(
     }),
 
     vscode.commands.registerCommand('structmap-solo.copyVisibleTree', async () => {
-      const editor = vscode.window.activeTextEditor;
-      if (!editor || !editor.document) {
+      const document = resolveTargetDocument(treeDataProvider);
+      if (!document) {
         vscode.window.showWarningMessage(
           vscode.l10n?.t
             ? vscode.l10n.t('No active text editor to copy tree from.')
@@ -110,9 +128,9 @@ export function registerCommands(
         );
         return;
       }
-      const fileName = editor.document.fileName;
-      const content = editor.document.getText();
-      const { maxFileSizeMB, maxArrayItems, customMappings } = getStructMapConfig(editor.document.uri);
+      const fileName = document.fileName;
+      const content = document.getText();
+      const { maxFileSizeMB, maxArrayItems, customMappings } = getStructMapConfig(document.uri);
       const parseResult = structMapService.build(fileName, content, maxFileSizeMB, maxArrayItems, customMappings);
       if (!isParseSuccess(parseResult)) {
         vscode.window.showWarningMessage(
@@ -198,14 +216,13 @@ export function registerCommands(
     }),
 
     vscode.commands.registerCommand('structmap-solo.toggleTypes', async () => {
-      const editor = vscode.window.activeTextEditor;
-      const customMappings = editor && editor.document
-        ? vscode.workspace.getConfiguration('structMap', editor.document.uri).get<Record<string, string>>('customMappings')
+      const document = resolveTargetDocument(treeDataProvider);
+      const customMappings = document
+        ? vscode.workspace.getConfiguration('structMap', document.uri).get<Record<string, string>>('customMappings')
         : undefined;
       if (
-        !editor ||
-        !editor.document ||
-        !structMapService.supportsTypes(editor.document.fileName, customMappings)
+        !document ||
+        !structMapService.supportsTypes(document.fileName, customMappings)
       ) {
         return;
       }
@@ -229,7 +246,12 @@ export function registerCommands(
     }),
 
     vscode.commands.registerCommand('structmap-solo.refresh', () => {
-      updateTypesSupportedContext(vscode.window.activeTextEditor, structMapService);
+      // While a non-text editor has focus the tree keeps its previous
+      // target, so leave the types context untouched instead of
+      // resetting it based on the missing active editor.
+      if (vscode.window.activeTextEditor) {
+        updateTypesSupportedContext(vscode.window.activeTextEditor, structMapService);
+      }
       treeDataProvider.refresh();
     }),
 

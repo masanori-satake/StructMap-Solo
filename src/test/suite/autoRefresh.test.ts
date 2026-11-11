@@ -7,8 +7,10 @@ import * as vscode from 'vscode';
 suite('Extension automatic refresh', () => {
   function createHarness() {
     const changes = new vscode.EventEmitter<{ document: object }>();
-    const editors = new vscode.EventEmitter<void>();
+    const editors = new vscode.EventEmitter<unknown>();
+    const closes = new vscode.EventEmitter<object>();
     const document = { uri: vscode.Uri.parse('untitled:active.md') };
+    const otherDocument = { uri: vscode.Uri.parse('untitled:other.md') };
     const window = {
       activeTextEditor: { document },
       // Return a mock TreeView with description and dispose
@@ -40,9 +42,10 @@ suite('Extension automatic refresh', () => {
             window,
             workspace: {
               onDidChangeTextDocument: changes.event,
+              onDidCloseTextDocument: closes.event,
               getConfiguration: (section: string, uri: vscode.Uri) => {
                 assert.strictEqual(section, 'structMap');
-                assert.strictEqual(uri, document.uri);
+                assert.ok(uri === document.uri || uri === otherDocument.uri);
                 return { get: (key: keyof typeof settings) => settings[key] };
               },
             },
@@ -50,7 +53,12 @@ suite('Extension automatic refresh', () => {
           case './core': return { StructMapService: class {} };
           case './vscode':
           case './vscode/providers/StructMapTreeProvider': return {
-            StructMapTreeProvider: class { refresh() { refreshes++; } },
+            StructMapTreeProvider: class {
+              refresh() { refreshes++; }
+              getChildren() { return []; }
+              getTargetDocument() { return document; }
+              forgetDocument(closed: object) { return closed === document; }
+            },
             ViewStateManager: class { getState() { return { showTypes: true, showRoot: true, treeStyle: 'unicode' }; } },
             NodeNavigator: class {},
             TreeExpansionState: class { expand() {} collapse() {} clear() {} isExpanded() { return false; } snapshot() { return new Set(); } },
@@ -76,7 +84,11 @@ suite('Extension automatic refresh', () => {
     return {
       settings,
       edit: (changedDocument = document) => changes.fire({ document: changedDocument }),
-      switchEditor: () => editors.fire(),
+      switchEditor: () => editors.fire({ document: otherDocument }),
+      switchToPreview: () => editors.fire(undefined),
+      switchBackToSameEditor: () => editors.fire({ document }),
+      close: (closedDocument: object = document) => closes.fire(closedDocument),
+      otherDocument,
       get refreshes() { return refreshes; },
       advance: (ms: number) => {
         now += ms;
@@ -91,6 +103,7 @@ suite('Extension automatic refresh', () => {
         subscriptions.forEach(subscription => subscription.dispose());
         changes.dispose();
         editors.dispose();
+        closes.dispose();
       },
     };
   }
@@ -141,6 +154,48 @@ suite('Extension automatic refresh', () => {
     assert.strictEqual(harness.refreshes, 1);
     harness.advance(100);
     assert.strictEqual(harness.refreshes, 1);
+  });
+
+  test('moving focus to a non-text editor (preview) does not refresh or clear the tree', () => {
+    harness.switchToPreview();
+    assert.strictEqual(harness.refreshes, 0);
+    // Returning to the same document also needs no refresh.
+    harness.switchBackToSameEditor();
+    assert.strictEqual(harness.refreshes, 0);
+  });
+
+  test('a pending edit refresh still fires after a preview focus move', () => {
+    harness.edit();
+    harness.switchToPreview();
+    harness.advance(100);
+    assert.strictEqual(harness.refreshes, 1);
+  });
+
+  test('switching editors with autoRefresh disabled does not record the new target', () => {
+    harness.settings.autoRefresh = false;
+    harness.switchEditor();
+    assert.strictEqual(harness.refreshes, 0);
+    // Because the switch was not recorded while autoRefresh was off,
+    // the same switch redraws once autoRefresh is enabled again.
+    harness.settings.autoRefresh = true;
+    harness.switchEditor();
+    assert.strictEqual(harness.refreshes, 1);
+  });
+
+  test('closing the retained document refreshes the tree', () => {
+    harness.close();
+    assert.strictEqual(harness.refreshes, 1);
+  });
+
+  test('closing the retained document does not refresh when autoRefresh is disabled', () => {
+    harness.settings.autoRefresh = false;
+    harness.close();
+    assert.strictEqual(harness.refreshes, 0);
+  });
+
+  test('closing a different document does not refresh the tree', () => {
+    harness.close(harness.otherDocument);
+    assert.strictEqual(harness.refreshes, 0);
   });
 
   test('disposal cancels pending refreshes', () => {

@@ -23,6 +23,79 @@ suite('StructMapTreeProvider Test Suite', () => {
     assert.strictEqual(children[0].isError, true);
   });
 
+  test('Retains the last document when the active editor becomes undefined (preview focus)', () => {
+    const mockEditor = createMockEditor(
+      'sample.md',
+      '# Title\n## Subtitle\nText body'
+    );
+    let activeEditor: vscode.TextEditor | undefined = mockEditor;
+    const provider = new StructMapTreeProvider(service, () => activeEditor);
+
+    const before = provider.getChildren() as StructTreeItem[];
+    assert.strictEqual(before.length, 1);
+    assert.strictEqual(before[0].label, 'sample.md');
+
+    // Markdown preview is a webview: activeTextEditor becomes undefined.
+    activeEditor = undefined;
+    const after = provider.getChildren() as StructTreeItem[];
+    assert.strictEqual(after.length, 1);
+    assert.strictEqual(after[0].isError, false);
+    assert.strictEqual(after[0].label, 'sample.md');
+    assert.strictEqual(provider.getTargetDocument()?.fileName, 'sample.md');
+  });
+
+  test('getTargetDocument is a pure read and does not retarget the retained document', () => {
+    const mdEditor = createMockEditor('sample.md', '# Title');
+    const jsonEditor = createMockEditor('config.json', '{"name": "test"}');
+    let activeEditor: vscode.TextEditor | undefined = mdEditor;
+    const provider = new StructMapTreeProvider(service, () => activeEditor);
+
+    // Build the tree once so sample.md becomes the retained target.
+    provider.getChildren();
+
+    // Merely inspecting the target while another editor is active (as a
+    // document-change handler would) must not replace the retained target.
+    activeEditor = jsonEditor;
+    assert.strictEqual(provider.getTargetDocument()?.fileName, 'config.json');
+
+    // When focus then moves to a preview, the tree still targets sample.md.
+    activeEditor = undefined;
+    assert.strictEqual(provider.getTargetDocument()?.fileName, 'sample.md');
+    const children = provider.getChildren() as StructTreeItem[];
+    assert.strictEqual(children[0].label, 'sample.md');
+  });
+
+  test('forgetDocument clears the retained document and returns to No Active Editor', () => {
+    const mockEditor = createMockEditor('sample.md', '# Title');
+    let activeEditor: vscode.TextEditor | undefined = mockEditor;
+    const provider = new StructMapTreeProvider(service, () => activeEditor);
+    provider.getChildren();
+
+    activeEditor = undefined;
+    assert.strictEqual(provider.forgetDocument(mockEditor.document), true);
+
+    const children = provider.getChildren() as StructTreeItem[];
+    assert.strictEqual(children.length, 1);
+    assert.strictEqual(children[0].label, 'No Active Editor');
+    // Forgetting a different document does not clear anything.
+    assert.strictEqual(provider.forgetDocument(mockEditor.document), false);
+  });
+
+  test('Switching to a different document replaces the retained target', () => {
+    const mdEditor = createMockEditor('sample.md', '# Title');
+    const jsonEditor = createMockEditor('config.json', '{"name": "test"}');
+    let activeEditor: vscode.TextEditor | undefined = mdEditor;
+    const provider = new StructMapTreeProvider(service, () => activeEditor);
+
+    assert.strictEqual((provider.getChildren() as StructTreeItem[])[0].label, 'sample.md');
+
+    activeEditor = jsonEditor;
+    assert.strictEqual((provider.getChildren() as StructTreeItem[])[0].label, 'config.json');
+
+    activeEditor = undefined;
+    assert.strictEqual((provider.getChildren() as StructTreeItem[])[0].label, 'config.json');
+  });
+
   test('AC-2: Markdown document returns StructTree root and children', () => {
     const mockEditor = createMockEditor(
       'sample.md',
