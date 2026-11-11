@@ -257,11 +257,31 @@ export function registerCommands(
 
     vscode.commands.registerCommand(
       'structmap-solo.jumpToNode',
-      (node: StructNode) => {
-        const editor = vscode.window.activeTextEditor;
-        if (editor && node) {
-          nodeNavigator.jumpToNode(editor, node);
+      async (node: StructNode) => {
+        if (!node) {
+          return;
         }
+        // Resolve against the tree's target document (active editor, or the
+        // retained target while the Markdown preview has focus) rather than
+        // only the active editor, so node clicks still jump after the user
+        // clicked or selected text in the preview.
+        const targetDocument = resolveTargetDocument(treeDataProvider);
+        if (!targetDocument) {
+          return;
+        }
+        const visibleEditors = vscode.window.visibleTextEditors ?? [];
+        let editor = visibleEditors.find(
+          (candidate) => candidate.document === targetDocument
+        );
+        if (!editor) {
+          // The target document is not shown anywhere (e.g. only its preview
+          // is open): open the source beside the current editor and jump.
+          editor = await vscode.window.showTextDocument(targetDocument, {
+            viewColumn: vscode.ViewColumn.Beside,
+            preview: false,
+          });
+        }
+        nodeNavigator.jumpToNode(editor, node);
       }
     )
   );
