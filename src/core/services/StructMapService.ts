@@ -11,6 +11,7 @@ import {
   YamlParser,
 } from '../parsers';
 import { resolveParserByCustomMappings } from '../utils/mappingResolver';
+import { clampMaxArrayItems, clampMaxFileSizeMB } from '../../utils/configClamp';
 
 /**
  * Service providing a unified entry point to build a StructTree from various file formats.
@@ -42,6 +43,11 @@ export class StructMapService {
     maxArrayItems: number = 50,
     customMappings?: Record<string, string>
   ): ParseResult {
+    // Clamp at the service entry point as well, so out-of-range values from
+    // any caller (including workspace settings) cannot disable the limits.
+    maxFileSizeMB = clampMaxFileSizeMB(maxFileSizeMB);
+    maxArrayItems = clampMaxArrayItems(maxArrayItems);
+
     const customFormat = resolveParserByCustomMappings(fileName, customMappings);
     const ext = this.getFileExtension(fileName);
     const baseName = this.getBaseFileName(fileName);
@@ -59,7 +65,7 @@ export class StructMapService {
         : new TextEncoder().encode(content).length;
     const contentSizeMB = contentSizeBytes / (1024 * 1024);
 
-    if (maxFileSizeMB > 0 && contentSizeMB > maxFileSizeMB) {
+    if (contentSizeMB > maxFileSizeMB) {
       return createParseError(
         ParseErrorCode.FILE_TOO_LARGE,
         `Current: ${contentSizeMB} MB\nLimit: ${maxFileSizeMB} MB`

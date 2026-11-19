@@ -5,7 +5,7 @@ import {
   ParseResult
 } from '../../errors';
 import { StructNode, StructTree } from '../../model';
-import { convertObjectToStructTree } from '../common/objectConverter';
+import { convertObjectToStructTree, NodeCounter } from '../common/objectConverter';
 
 interface ParsedLine {
   lineNum: number;
@@ -114,6 +114,9 @@ export class NdjsonParser {
 
     const lines = content.split(/\r?\n/);
     const parsedLines: ParsedLine[] = [];
+    // Node budget shared across all lines, so a document made of many
+    // individually-small lines cannot exceed the total node limit.
+    const nodeCounter: NodeCounter = { count: 0 };
 
     for (let i = 0; i < lines.length; i++) {
       const rawLine = lines[i];
@@ -138,12 +141,23 @@ export class NdjsonParser {
 
       // Convert the parsed line into a StructTree / StructNode
       const lineNodeName = `Line ${lineNum}`;
-      const lineTree = convertObjectToStructTree(
-        parsedObj,
-        lineNodeName,
-        'ndjson',
-        maxArrayItems
-      );
+      let lineTree;
+      try {
+        lineTree = convertObjectToStructTree(
+          parsedObj,
+          lineNodeName,
+          'ndjson',
+          maxArrayItems,
+          nodeCounter
+        );
+      } catch (err) {
+        const rawMessage = err instanceof Error ? err.message : String(err);
+        return createParseError(
+          ParseErrorCode.NDJSON_PARSE_ERROR,
+          `NDJSON Parse Error at line ${lineNum}: ${rawMessage}`,
+          lineNum
+        );
+      }
 
       // Adapt line root node
       const lineNode = lineTree.root;

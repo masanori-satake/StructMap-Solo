@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { isParseError, isParseSuccess, ParseError, ParseErrorCode, StructMapService, StructNode } from '../../core';
 import { DEFAULT_VIEW_STATE, ViewState, ViewStateManager } from '../state/ViewState';
+import { clampMaxArrayItems, clampMaxFileSizeMB } from '../../utils/configClamp';
 
 /**
  * Gets the ThemeIcon corresponding to a StructNode's nodeType according to requirements.
@@ -265,8 +266,8 @@ export class StructMapTreeProvider implements vscode.TreeDataProvider<StructTree
       const config = vscode.workspace?.getConfiguration
         ? vscode.workspace.getConfiguration('structMap', targetDocument.uri)
         : undefined;
-      const maxFileSizeMB = config ? config.get<number>('maxFileSizeMB', 5) : 5;
-      const maxArrayItems = config ? config.get<number>('maxArrayItems', 50) : 50;
+      const maxFileSizeMB = clampMaxFileSizeMB(config ? config.get<number>('maxFileSizeMB', 5) : 5);
+      const maxArrayItems = clampMaxArrayItems(config ? config.get<number>('maxArrayItems', 50) : 50);
       const customMappings = config ? config.get<Record<string, string>>('customMappings') : undefined;
 
       const parseResult = this.structMapService.build(

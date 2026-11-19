@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { StructMapService } from './core';
+import { clampDebounceMs } from './utils/configClamp';
 import { setStructMapTreeView } from './vscode/view/StructMapView';
 import { updateTreeStyleDescription } from './vscode/view/StructMapView';
 import {
@@ -171,7 +172,7 @@ export function activate(context: vscode.ExtensionContext): void {
           ) {
             treeDataProvider.refresh();
           }
-        }, config.get<number>('debounceMs', 500));
+        }, clampDebounceMs(config.get<number>('debounceMs', 500)));
       }
     })
   );

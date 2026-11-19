@@ -6,6 +6,7 @@ import { ViewStateManager } from '../state/ViewState';
 import { TreeExpansionState } from '../view/TreeExpansionState';
 import { VisibleTreeProjection } from '../view/VisibleTreeProjection';
 import { structMapTreeView, updateTreeStyleDescription } from '../view/StructMapView';
+import { clampMaxArrayItems, clampMaxFileSizeMB } from '../../utils/configClamp';
 
 /**
  * Updates the VS Code context key indicating whether the active document supports type toggle.
@@ -51,8 +52,8 @@ function getStructMapConfig(documentUri?: vscode.Uri): {
   const config = vscode.workspace?.getConfiguration
     ? vscode.workspace.getConfiguration('structMap', documentUri)
     : undefined;
-  const maxFileSizeMB = config ? config.get<number>('maxFileSizeMB', 5) : 5;
-  const maxArrayItems = config ? config.get<number>('maxArrayItems', 50) : 50;
+  const maxFileSizeMB = clampMaxFileSizeMB(config ? config.get<number>('maxFileSizeMB', 5) : 5);
+  const maxArrayItems = clampMaxArrayItems(config ? config.get<number>('maxArrayItems', 50) : 50);
   const customMappings = config ? config.get<Record<string, string>>('customMappings') : undefined;
   return { maxFileSizeMB, maxArrayItems, customMappings };
 }

@@ -62,25 +62,50 @@ function resolveJsonPointer(rootSchema: any, ref: string): any {
 }
 
 /**
+ * Maximum total number of schema nodes produced while resolving `$ref`s.
+ * The ancestor-chain guard stops circular references, but sibling ("diamond")
+ * references duplicate the target at every occurrence, so the resolved output
+ * can grow as 2^n in the reference depth. This budget caps the total amount
+ * of duplicated output; exceeding it aborts resolution with an error.
+ */
+export const MAX_RESOLVED_SCHEMA_NODES = 10_000;
+
+interface ResolutionBudget {
+  count: number;
+}
+
+function countResolvedNode(budget: ResolutionBudget): void {
+  if (++budget.count > MAX_RESOLVED_SCHEMA_NODES) {
+    throw new Error(
+      `JSON Schema resolution exceeds the maximum of ${MAX_RESOLVED_SCHEMA_NODES} nodes`
+    );
+  }
+}
+
+/**
  * Resolves `$ref` pointers within a schema with circular reference protection.
  *
  * @param schema The schema object to resolve.
  * @param rootSchema The root schema containing definitions/$defs.
  * @param ancestorRefs Set of `$ref` strings currently in the resolution ancestor chain.
+ * @param budget Shared counter bounding the total resolved size (internal).
  * @returns Resolved schema object with inlined references and `$refMeta`.
  */
 export function resolveSchemaWithCircularGuard(
   schema: any,
   rootSchema: any,
-  ancestorRefs: Set<string> = new Set<string>()
+  ancestorRefs: Set<string> = new Set<string>(),
+  budget: ResolutionBudget = { count: 0 }
 ): any {
   if (!schema || typeof schema !== 'object') {
     return schema;
   }
 
+  countResolvedNode(budget);
+
   if (Array.isArray(schema)) {
     return schema.map((item) =>
-      resolveSchemaWithCircularGuard(item, rootSchema, new Set(ancestorRefs))
+      resolveSchemaWithCircularGuard(item, rootSchema, new Set(ancestorRefs), budget)
     );
   }
 
@@ -108,7 +133,12 @@ export function resolveSchemaWithCircularGuard(
     nextAncestors.add(refPath);
 
     // Recursively resolve the referenced target
-    const resolvedClone = resolveSchemaWithCircularGuard(resolvedTarget, rootSchema, nextAncestors);
+    const resolvedClone = resolveSchemaWithCircularGuard(
+      resolvedTarget,
+      rootSchema,
+      nextAncestors,
+      budget
+    );
 
     // Merge inlined target with current schema properties (such as title, description, etc.)
     return {
@@ -128,7 +158,7 @@ export function resolveSchemaWithCircularGuard(
   for (const key of Object.keys(schema)) {
     const val = schema[key];
     if (val && typeof val === 'object') {
-      copy[key] = resolveSchemaWithCircularGuard(val, rootSchema, new Set(ancestorRefs));
+      copy[key] = resolveSchemaWithCircularGuard(val, rootSchema, new Set(ancestorRefs), budget);
     } else {
       copy[key] = val;
     }

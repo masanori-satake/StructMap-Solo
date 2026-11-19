@@ -2,7 +2,7 @@
   "name": "structmap-solo",
   "displayName": "StructMap-Solo",
   "description": "%extension.description%",
-  "version": "1.9.4",
+  "version": "1.9.5",
   "icon": "assets/icon.png",
   "publisher": "masanori-satake",
   "repository": {
@@ -160,17 +160,22 @@
         "structMap.debounceMs": {
           "type": "number",
           "default": 500,
+          "minimum": 0,
+          "maximum": 5000,
           "description": "%config.debounceMs%"
         },
         "structMap.maxFileSizeMB": {
           "type": "number",
           "default": 5,
+          "minimum": 0.1,
+          "maximum": 50,
           "description": "%config.maxFileSizeMB%"
         },
         "structMap.maxArrayItems": {
           "type": "integer",
           "default": 50,
           "minimum": 1,
+          "maximum": 1000,
           "description": "%config.maxArrayItems%"
         },
         "structMap.customMappings": {
