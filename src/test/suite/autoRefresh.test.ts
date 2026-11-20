@@ -51,6 +51,8 @@ suite('Extension automatic refresh', () => {
             },
           };
           case './core': return { StructMapService: class {} };
+          // Dependency-free utility: load the real compiled module.
+          case './utils/configClamp': return require('../../utils/configClamp');
           case './vscode':
           case './vscode/providers/StructMapTreeProvider': return {
             StructMapTreeProvider: class {

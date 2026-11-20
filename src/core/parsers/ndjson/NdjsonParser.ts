@@ -5,7 +5,7 @@ import {
   ParseResult
 } from '../../errors';
 import { StructNode, StructTree } from '../../model';
-import { convertObjectToStructTree } from '../common/objectConverter';
+import { convertObjectToStructTree, countNode, NodeCounter } from '../common/objectConverter';
 
 interface ParsedLine {
   lineNum: number;
@@ -14,6 +14,8 @@ interface ParsedLine {
 
 /**
  * Creates a range node representing a subset of line items [Line X .. Line Y].
+ * Every range node is charged to the shared node budget, so chunking many
+ * lines cannot push the document past MAX_NODES unnoticed.
  */
 function createRangeNode(
   items: ParsedLine[],
@@ -21,8 +23,10 @@ function createRangeNode(
   endIdx: number,
   parentPath: string[],
   createId: () => string,
-  maxArrayItems: number
+  maxArrayItems: number,
+  counter: NodeCounter
 ): StructNode {
+  countNode(counter);
   const startLine = items[startIdx].lineNum;
   const endLine = items[endIdx].lineNum;
   const rangeName = `[Line ${startLine} .. Line ${endLine}]`;
@@ -59,7 +63,7 @@ function createRangeNode(
         children.push(itemNode);
       } else {
         children.push(
-          createRangeNode(items, s, e, currentPath, createId, maxArrayItems)
+          createRangeNode(items, s, e, currentPath, createId, maxArrayItems, counter)
         );
       }
     }
@@ -104,6 +108,12 @@ export class NdjsonParser {
     const createId = () => `node-${idCounter++}`;
     const rootPath = [fileName];
 
+    // Node budget shared across the document root, all lines, and the
+    // range nodes built below, so the whole document stays within
+    // MAX_NODES instead of only the per-line conversions.
+    const nodeCounter: NodeCounter = { count: 0 };
+    countNode(nodeCounter);
+
     const rootNode: StructNode = {
       id: createId(),
       name: fileName,
@@ -138,12 +148,23 @@ export class NdjsonParser {
 
       // Convert the parsed line into a StructTree / StructNode
       const lineNodeName = `Line ${lineNum}`;
-      const lineTree = convertObjectToStructTree(
-        parsedObj,
-        lineNodeName,
-        'ndjson',
-        maxArrayItems
-      );
+      let lineTree;
+      try {
+        lineTree = convertObjectToStructTree(
+          parsedObj,
+          lineNodeName,
+          'ndjson',
+          maxArrayItems,
+          nodeCounter
+        );
+      } catch (err) {
+        const rawMessage = err instanceof Error ? err.message : String(err);
+        return createParseError(
+          ParseErrorCode.NDJSON_PARSE_ERROR,
+          `NDJSON Parse Error at line ${lineNum}: ${rawMessage}`,
+          lineNum
+        );
+      }
 
       // Adapt line root node
       const lineNode = lineTree.root;
@@ -169,23 +190,32 @@ export class NdjsonParser {
 
     const totalLines = parsedLines.length;
     if (totalLines > 0) {
-      if (totalLines <= maxArrayItems) {
-        for (const item of parsedLines) {
-          rootNode.children.push(item.node);
+      try {
+        if (totalLines <= maxArrayItems) {
+          for (const item of parsedLines) {
+            rootNode.children.push(item.node);
+          }
+        } else {
+          for (let i = 0; i < maxArrayItems; i++) {
+            rootNode.children.push(parsedLines[i].node);
+          }
+          rootNode.children.push(
+            createRangeNode(
+              parsedLines,
+              maxArrayItems,
+              totalLines - 1,
+              rootPath,
+              createId,
+              maxArrayItems,
+              nodeCounter
+            )
+          );
         }
-      } else {
-        for (let i = 0; i < maxArrayItems; i++) {
-          rootNode.children.push(parsedLines[i].node);
-        }
-        rootNode.children.push(
-          createRangeNode(
-            parsedLines,
-            maxArrayItems,
-            totalLines - 1,
-            rootPath,
-            createId,
-            maxArrayItems
-          )
+      } catch (err) {
+        const rawMessage = err instanceof Error ? err.message : String(err);
+        return createParseError(
+          ParseErrorCode.NDJSON_PARSE_ERROR,
+          `NDJSON Parse Error: ${rawMessage}`
         );
       }
     }

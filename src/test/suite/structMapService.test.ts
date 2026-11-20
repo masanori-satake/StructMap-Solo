@@ -120,10 +120,19 @@ suite('StructMapService Test Suite', () => {
       assert.strictEqual(atLimitResult.code, ParseErrorCode.EMPTY_FILE);
     }
 
-    const unlimitedResult = service.build('whitespace.json', ' '.repeat(limitBytes + 1024), 0);
-    assert.strictEqual(unlimitedResult.type, 'error');
-    if (unlimitedResult.type === 'error') {
-      assert.strictEqual(unlimitedResult.code, ParseErrorCode.EMPTY_FILE);
+    // maxFileSizeMB <= 0 no longer disables the limit: it is clamped to the
+    // default (5 MB), so an over-limit document reports FILE_TOO_LARGE.
+    const zeroLimitResult = service.build('whitespace.json', ' '.repeat(limitBytes + 1024), 0);
+    assert.strictEqual(zeroLimitResult.type, 'error');
+    if (zeroLimitResult.type === 'error') {
+      assert.strictEqual(zeroLimitResult.code, ParseErrorCode.FILE_TOO_LARGE);
+      assert.ok(zeroLimitResult.message.includes('Limit: 5 MB'));
+    }
+
+    const negativeLimitResult = service.build('whitespace.json', ' '.repeat(limitBytes + 1024), -3);
+    assert.strictEqual(negativeLimitResult.type, 'error');
+    if (negativeLimitResult.type === 'error') {
+      assert.strictEqual(negativeLimitResult.code, ParseErrorCode.FILE_TOO_LARGE);
     }
   });
 

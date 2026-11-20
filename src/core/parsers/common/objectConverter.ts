@@ -1,6 +1,36 @@
 import { SourceFormat, StructNode, StructTree, ValueType } from '../../model';
 
 /**
+ * Maximum number of StructNodes a single conversion may create.
+ * Mirrors the budget already enforced by FrontmatterParser: inputs whose
+ * expanded size exceeds this (e.g. YAML alias bombs, where a few hundred
+ * bytes expand to tens of millions of logical nodes) are rejected instead
+ * of exhausting the Extension Host.
+ */
+export const MAX_NODES = 10_000;
+
+/**
+ * Mutable node counter shared across one conversion (or, for NDJSON, across
+ * all lines of one document) so the MAX_NODES budget applies to the total
+ * expanded size rather than to each subtree.
+ */
+export interface NodeCounter {
+  count: number;
+}
+
+/**
+ * Counts one created StructNode against the shared budget.
+ * Exported so callers that build nodes outside `convertObjectToStructTree`
+ * (e.g. NDJSON document roots and range nodes) can charge them to the
+ * same budget. Throws when the total exceeds MAX_NODES.
+ */
+export function countNode(counter: NodeCounter): void {
+  if (++counter.count > MAX_NODES) {
+    throw new Error(`Document exceeds the maximum of ${MAX_NODES} nodes`);
+  }
+}
+
+/**
  * Gets the ValueType for a primitive JS value in JSON/YAML.
  */
 function getValueType(value: unknown): ValueType {
@@ -30,8 +60,10 @@ function createRangeNode(
   parentPath: string[],
   createId: () => string,
   ancestors: WeakSet<object>,
-  maxArrayItems: number
+  maxArrayItems: number,
+  counter: NodeCounter
 ): StructNode {
+  countNode(counter);
   const rangeName = `[${start} .. ${end}]`;
   const currentPath = [...parentPath, rangeName];
   const count = end - start + 1;
@@ -47,7 +79,8 @@ function createRangeNode(
           currentPath,
           createId,
           ancestors,
-          maxArrayItems
+          maxArrayItems,
+          counter
         )
       );
     }
@@ -73,7 +106,8 @@ function createRangeNode(
             currentPath,
             createId,
             ancestors,
-            maxArrayItems
+            maxArrayItems,
+            counter
           )
         );
       } else {
@@ -85,7 +119,8 @@ function createRangeNode(
             currentPath,
             createId,
             ancestors,
-            maxArrayItems
+            maxArrayItems,
+            counter
           )
         );
       }
@@ -111,8 +146,10 @@ function convertValueToNode(
   parentPath: string[],
   createId: () => string,
   ancestors: WeakSet<object>,
-  maxArrayItems: number = 50
+  maxArrayItems: number = 50,
+  counter: NodeCounter = { count: 0 }
 ): StructNode {
+  countNode(counter);
   const currentPath = [...parentPath, key];
 
   if (value instanceof Date) {
@@ -150,7 +187,8 @@ function convertValueToNode(
                 currentPath,
                 createId,
                 ancestors,
-                maxArrayItems
+                maxArrayItems,
+                counter
               )
             );
           }
@@ -163,7 +201,8 @@ function convertValueToNode(
                 currentPath,
                 createId,
                 ancestors,
-                maxArrayItems
+                maxArrayItems,
+                counter
               )
             );
           }
@@ -175,7 +214,8 @@ function convertValueToNode(
               currentPath,
               createId,
               ancestors,
-              maxArrayItems
+              maxArrayItems,
+              counter
             )
           );
         }
@@ -198,7 +238,8 @@ function convertValueToNode(
         currentPath,
         createId,
         ancestors,
-        maxArrayItems
+        maxArrayItems,
+        counter
       )
     );
 
@@ -228,10 +269,12 @@ export function convertObjectToStructTree(
   parsed: unknown,
   fileName: string = 'root',
   sourceFormat: SourceFormat,
-  maxArrayItems: number = 50
+  maxArrayItems: number = 50,
+  counter: NodeCounter = { count: 0 }
 ): StructTree {
   let idCounter = 0;
   const createId = () => `node-${idCounter++}`;
+  countNode(counter);
   const ancestors = new WeakSet<object>(
     parsed !== null && typeof parsed === 'object' ? [parsed] : []
   );
@@ -250,20 +293,20 @@ export function convertObjectToStructTree(
     rootNode.children = [];
   } else if (parsed === null || typeof parsed !== 'object' || parsed instanceof Date) {
     rootNode.children = [
-      convertValueToNode(parsed, 'value', rootPath, createId, ancestors, maxArrayItems)
+      convertValueToNode(parsed, 'value', rootPath, createId, ancestors, maxArrayItems, counter)
     ];
   } else if (Array.isArray(parsed)) {
     const len = parsed.length;
     if (len > 0) {
       if (len <= maxArrayItems) {
         rootNode.children = parsed.map((item, index) =>
-          convertValueToNode(item, `[${index}]`, rootPath, createId, ancestors, maxArrayItems)
+          convertValueToNode(item, `[${index}]`, rootPath, createId, ancestors, maxArrayItems, counter)
         );
       } else {
         const children: StructNode[] = [];
         for (let i = 0; i < maxArrayItems; i++) {
           children.push(
-            convertValueToNode(parsed[i], `[${i}]`, rootPath, createId, ancestors, maxArrayItems)
+            convertValueToNode(parsed[i], `[${i}]`, rootPath, createId, ancestors, maxArrayItems, counter)
           );
         }
         children.push(
@@ -274,7 +317,8 @@ export function convertObjectToStructTree(
             rootPath,
             createId,
             ancestors,
-            maxArrayItems
+            maxArrayItems,
+            counter
           )
         );
         rootNode.children = children;
@@ -283,7 +327,7 @@ export function convertObjectToStructTree(
   } else {
     const obj = parsed as Record<string, unknown>;
     rootNode.children = Object.keys(obj).map((key) =>
-      convertValueToNode(obj[key], key, rootPath, createId, ancestors, maxArrayItems)
+      convertValueToNode(obj[key], key, rootPath, createId, ancestors, maxArrayItems, counter)
     );
   }
 
