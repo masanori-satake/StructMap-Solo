@@ -74,10 +74,16 @@ interface ResolutionBudget {
   count: number;
 }
 
-function countResolvedNode(budget: ResolutionBudget): void {
+/**
+ * Charges one expanded value (object, array, or primitive) or one generated
+ * StructNode to the shared budget. The budget covers both the resolved
+ * schema and the StructNode tree built from it, because both live in
+ * memory at once; exceeding it aborts with an error.
+ */
+function countBudgetedNode(budget: ResolutionBudget): void {
   if (++budget.count > MAX_RESOLVED_SCHEMA_NODES) {
     throw new Error(
-      `JSON Schema resolution exceeds the maximum of ${MAX_RESOLVED_SCHEMA_NODES} nodes`
+      `JSON Schema expansion exceeds the maximum of ${MAX_RESOLVED_SCHEMA_NODES} nodes`
     );
   }
 }
@@ -97,11 +103,14 @@ export function resolveSchemaWithCircularGuard(
   ancestorRefs: Set<string> = new Set<string>(),
   budget: ResolutionBudget = { count: 0 }
 ): any {
+  // Count every visited value, primitives included: a `true` in a
+  // referenced definition is duplicated at every reference site, so
+  // counting only objects lets a small input expand without bound.
+  countBudgetedNode(budget);
+
   if (!schema || typeof schema !== 'object') {
     return schema;
   }
-
-  countResolvedNode(budget);
 
   if (Array.isArray(schema)) {
     return schema.map((item) =>
@@ -154,14 +163,15 @@ export function resolveSchemaWithCircularGuard(
   }
 
   // Shallow copy object and resolve properties, definitions, $defs, items, oneOf, etc.
+  // Primitives are recursed into as well so they are charged to the budget.
   const copy: Record<string, any> = {};
   for (const key of Object.keys(schema)) {
-    const val = schema[key];
-    if (val && typeof val === 'object') {
-      copy[key] = resolveSchemaWithCircularGuard(val, rootSchema, new Set(ancestorRefs), budget);
-    } else {
-      copy[key] = val;
-    }
+    copy[key] = resolveSchemaWithCircularGuard(
+      schema[key],
+      rootSchema,
+      new Set(ancestorRefs),
+      budget
+    );
   }
 
   return copy;
@@ -183,8 +193,13 @@ export function parseJsonSchema(
   let idCounter = 0;
   const createId = () => `schema-node-${idCounter++}`;
 
-  const resolved = resolveSchemaWithCircularGuard(schema, schema);
+  // One budget shared by resolution and StructNode generation: the
+  // resolved schema and the node tree coexist in memory, so their sum
+  // is what the cap must bound.
+  const budget: ResolutionBudget = { count: 0 };
+  const resolved = resolveSchemaWithCircularGuard(schema, schema, new Set<string>(), budget);
 
+  countBudgetedNode(budget);
   const rootNode: StructNode = {
     id: createId(),
     name: fileName,
@@ -203,10 +218,11 @@ export function parseJsonSchema(
 
     for (const [defKey, defVal] of Object.entries(defsObj)) {
       defChildren.push(
-        convertSchemaPropertyToNode(defKey, defVal, defPath, createId, maxArrayItems)
+        convertSchemaPropertyToNode(defKey, defVal, defPath, createId, maxArrayItems, budget)
       );
     }
 
+    countBudgetedNode(budget);
     children.push({
       id: createId(),
       name: '[Definitions]',
@@ -226,10 +242,11 @@ export function parseJsonSchema(
       arr.forEach((option, idx) => {
         const optionName = `[${idx}]`;
         optionChildren.push(
-          convertSchemaPropertyToNode(optionName, option, complexPath, createId, maxArrayItems)
+          convertSchemaPropertyToNode(optionName, option, complexPath, createId, maxArrayItems, budget)
         );
       });
 
+      countBudgetedNode(budget);
       children.push({
         id: createId(),
         name: complexKey,
@@ -244,7 +261,7 @@ export function parseJsonSchema(
   if (resolved.properties && typeof resolved.properties === 'object') {
     for (const [propKey, propVal] of Object.entries(resolved.properties)) {
       children.push(
-        convertSchemaPropertyToNode(propKey, propVal, [fileName], createId, maxArrayItems)
+        convertSchemaPropertyToNode(propKey, propVal, [fileName], createId, maxArrayItems, budget)
       );
     }
   }
@@ -267,6 +284,7 @@ export function parseJsonSchema(
     }
     if (children.length === 0 || key === 'type' || key === 'title' || key === 'description') {
       if (typeof val !== 'object' || val === null) {
+        countBudgetedNode(budget);
         children.push({
           id: createId(),
           name: key,
@@ -286,14 +304,18 @@ export function parseJsonSchema(
 
 /**
  * Helper to convert a schema property into a StructNode.
+ * Every node created is charged to the shared budget, so repeated
+ * references to one definition cannot expand the tree without bound.
  */
 function convertSchemaPropertyToNode(
   key: string,
   schemaProp: any,
   parentPath: string[],
   createId: () => string,
-  maxArrayItems: number
+  maxArrayItems: number,
+  budget: ResolutionBudget
 ): StructNode {
+  countBudgetedNode(budget);
   const currentPath = [...parentPath, key];
 
   if (!schemaProp || typeof schemaProp !== 'object') {
@@ -331,7 +353,7 @@ function convertSchemaPropertyToNode(
   if (schemaProp.properties && typeof schemaProp.properties === 'object') {
     for (const [childKey, childVal] of Object.entries(schemaProp.properties)) {
       children.push(
-        convertSchemaPropertyToNode(childKey, childVal, currentPath, createId, maxArrayItems)
+        convertSchemaPropertyToNode(childKey, childVal, currentPath, createId, maxArrayItems, budget)
       );
     }
   }
@@ -341,12 +363,12 @@ function convertSchemaPropertyToNode(
     if (Array.isArray(schemaProp.items)) {
       schemaProp.items.forEach((itemSchema: any, idx: number) => {
         children.push(
-          convertSchemaPropertyToNode(`[${idx}]`, itemSchema, currentPath, createId, maxArrayItems)
+          convertSchemaPropertyToNode(`[${idx}]`, itemSchema, currentPath, createId, maxArrayItems, budget)
         );
       });
     } else {
       children.push(
-        convertSchemaPropertyToNode('[items]', schemaProp.items, currentPath, createId, maxArrayItems)
+        convertSchemaPropertyToNode('[items]', schemaProp.items, currentPath, createId, maxArrayItems, budget)
       );
     }
   }
@@ -360,10 +382,11 @@ function convertSchemaPropertyToNode(
 
       arr.forEach((option, idx) => {
         optionChildren.push(
-          convertSchemaPropertyToNode(`[${idx}]`, option, complexPath, createId, maxArrayItems)
+          convertSchemaPropertyToNode(`[${idx}]`, option, complexPath, createId, maxArrayItems, budget)
         );
       });
 
+      countBudgetedNode(budget);
       children.push({
         id: createId(),
         name: complexKey,

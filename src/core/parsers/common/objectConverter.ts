@@ -18,7 +18,13 @@ export interface NodeCounter {
   count: number;
 }
 
-function countNode(counter: NodeCounter): void {
+/**
+ * Counts one created StructNode against the shared budget.
+ * Exported so callers that build nodes outside `convertObjectToStructTree`
+ * (e.g. NDJSON document roots and range nodes) can charge them to the
+ * same budget. Throws when the total exceeds MAX_NODES.
+ */
+export function countNode(counter: NodeCounter): void {
   if (++counter.count > MAX_NODES) {
     throw new Error(`Document exceeds the maximum of ${MAX_NODES} nodes`);
   }

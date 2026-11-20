@@ -123,6 +123,28 @@ suite('Security Audit 2026-11-20 Regression Tests', () => {
       }
     });
 
+    test('NDJSON document root and range nodes count toward the budget', () => {
+      // CodeRabbit follow-up on PR #73: 10,000 `{}` lines used to succeed
+      // with maxArrayItems=2 even though the document root plus the
+      // binary-split range nodes pushed the total to ~20,000 nodes.
+      const content = Array(10000).fill('{}').join('\n');
+      const result = new NdjsonParser().parse(content, 'many.ndjson', 2);
+      assert.strictEqual(result.type, 'error');
+      if (result.type === 'error') {
+        assert.strictEqual(result.code, ParseErrorCode.NDJSON_PARSE_ERROR);
+        assert.ok(result.message.includes('10000'));
+      }
+    });
+
+    test('NDJSON document under the budget with range nodes still parses', () => {
+      const content = Array(60).fill('{}').join('\n');
+      const result = new NdjsonParser().parse(content, 'ok.ndjson', 2);
+      assert.strictEqual(result.type, 'success');
+      if (result.type === 'success') {
+        assert.ok(result.tree.root.children.some((n) => Boolean(n.isRange)));
+      }
+    });
+
     test('ordinary documents well under the budget still parse', () => {
       const result = new YamlParser().parse('a:\n  b: [1, 2, 3]\n', 'ok.yaml');
       assert.strictEqual(result.type, 'success');
@@ -164,6 +186,52 @@ suite('Security Audit 2026-11-20 Regression Tests', () => {
     test('small diamond references still resolve successfully', () => {
       const content = JSON.stringify(buildDiamondSchema(3));
       const result = new JsonSchemaParser().parse(content, 'ok.schema.json');
+      assert.strictEqual(result.type, 'success');
+    });
+
+    test('primitive-heavy $ref duplication is counted and rejected', () => {
+      // CodeRabbit follow-up on PR #73: $defs/W.properties holding
+      // 10,000 `true` values, referenced from 1,000 properties, used to
+      // pass the budget (~3,005 counted) and then generate 10M+ nodes.
+      // Primitives in duplicated content are now counted, and the same
+      // shared budget caps the generated StructNode tree.
+      const wProps: Record<string, boolean> = {};
+      for (let i = 0; i < 10000; i++) {
+        wProps[`p${i}`] = true;
+      }
+      const props: Record<string, unknown> = {};
+      for (let i = 0; i < 1000; i++) {
+        props[`r${i}`] = { $ref: '#/$defs/W' };
+      }
+      const schema = {
+        $defs: { W: { type: 'object', properties: wProps } },
+        type: 'object',
+        properties: props,
+      };
+
+      const start = Date.now();
+      const result = new JsonSchemaParser().parse(JSON.stringify(schema), 'bomb.schema.json');
+      const elapsed = Date.now() - start;
+
+      assert.strictEqual(result.type, 'error');
+      if (result.type === 'error') {
+        assert.strictEqual(result.code, ParseErrorCode.JSON_PARSE_ERROR);
+        assert.ok(result.message.includes('10000'));
+      }
+      assert.ok(elapsed < 10000, `parsing took ${elapsed}ms`);
+    });
+
+    test('small boolean schemas are still accepted', () => {
+      const schema = {
+        $defs: { Flag: true },
+        type: 'object',
+        properties: {
+          a: { $ref: '#/$defs/Flag' },
+          b: { $ref: '#/$defs/Flag' },
+          c: true,
+        },
+      };
+      const result = new JsonSchemaParser().parse(JSON.stringify(schema), 'ok.schema.json');
       assert.strictEqual(result.type, 'success');
     });
   });
