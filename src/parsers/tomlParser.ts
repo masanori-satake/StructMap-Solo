@@ -6,6 +6,10 @@ import {
   ParseResult,
 } from '../core/errors';
 import { StructNode, StructTree, ValueType } from '../core/model';
+import {
+  countNode,
+  NodeCounter,
+} from '../core/parsers/common/objectConverter';
 
 /**
  * Represents an entry in TOML AST.
@@ -440,15 +444,84 @@ function inferValueType(val: unknown): ValueType {
 }
 
 /**
+ * Creates a range node representing a subset of array items [start .. end].
+ * Mirrors the recursive binary chunking used by the JSON/YAML path in
+ * objectConverter: large ranges are split into sub-ranges instead of
+ * expanding every remaining element as a direct child.
+ */
+function createTomlRangeNode(
+  val: any[],
+  start: number,
+  end: number,
+  parentPath: string[],
+  createId: () => string,
+  maxArrayItems: number,
+  counter: NodeCounter
+): StructNode {
+  countNode(counter);
+  const rangeName = `[${start} .. ${end}]`;
+  const rangePath = [...parentPath, rangeName];
+  const count = end - start + 1;
+
+  const children: StructNode[] = [];
+
+  if (count <= maxArrayItems) {
+    for (let i = start; i <= end; i++) {
+      children.push(
+        convertTomlValueToNode(val[i], `[${i}]`, rangePath, createId, maxArrayItems, counter)
+      );
+    }
+  } else {
+    const step =
+      maxArrayItems <= 1
+        ? 1
+        : Math.max(
+            1,
+            Math.pow(
+              maxArrayItems,
+              Math.max(1, Math.ceil(Math.log(count) / Math.log(maxArrayItems)) - 1)
+            )
+          );
+
+    for (let s = start; s <= end; s += step) {
+      const e = Math.min(s + step - 1, end);
+      if (s === e) {
+        children.push(
+          convertTomlValueToNode(val[s], `[${s}]`, rangePath, createId, maxArrayItems, counter)
+        );
+      } else {
+        children.push(
+          createTomlRangeNode(val, s, e, rangePath, createId, maxArrayItems, counter)
+        );
+      }
+    }
+  }
+
+  return {
+    id: createId(),
+    name: rangeName,
+    path: rangePath,
+    nodeType: 'array',
+    children,
+    isRange: true,
+  };
+}
+
+/**
  * Converts a parsed TOML object or value to StructNode hierarchy deterministically.
+ * Every created node is charged to the shared MAX_NODES budget (see
+ * objectConverter) so oversized TOML documents are rejected with an error
+ * instead of exhausting the Extension Host.
  */
 export function convertTomlValueToNode(
   val: any,
   name: string,
   parentPath: string[],
   createId: () => string,
-  maxArrayItems: number = 50
+  maxArrayItems: number = 50,
+  counter: NodeCounter = { count: 0 }
 ): StructNode {
+  countNode(counter);
   const currentPath = [...parentPath, name];
 
   if (val === null || val === undefined || (typeof val !== 'object' && !Array.isArray(val))) {
@@ -470,31 +543,18 @@ export function convertTomlValueToNode(
     if (len <= maxArrayItems) {
       for (let i = 0; i < len; i++) {
         children.push(
-          convertTomlValueToNode(val[i], `[${i}]`, currentPath, createId, maxArrayItems)
+          convertTomlValueToNode(val[i], `[${i}]`, currentPath, createId, maxArrayItems, counter)
         );
       }
     } else {
       for (let i = 0; i < maxArrayItems; i++) {
         children.push(
-          convertTomlValueToNode(val[i], `[${i}]`, currentPath, createId, maxArrayItems)
+          convertTomlValueToNode(val[i], `[${i}]`, currentPath, createId, maxArrayItems, counter)
         );
       }
-      const rangeName = `[${maxArrayItems} .. ${len - 1}]`;
-      const rangePath = [...currentPath, rangeName];
-      const rangeChildren: StructNode[] = [];
-      for (let i = maxArrayItems; i < len; i++) {
-        rangeChildren.push(
-          convertTomlValueToNode(val[i], `[${i}]`, rangePath, createId, maxArrayItems)
-        );
-      }
-      children.push({
-        id: createId(),
-        name: rangeName,
-        path: rangePath,
-        nodeType: 'array',
-        children: rangeChildren,
-        isRange: true,
-      });
+      children.push(
+        createTomlRangeNode(val, maxArrayItems, len - 1, currentPath, createId, maxArrayItems, counter)
+      );
     }
 
     return {
@@ -511,7 +571,7 @@ export function convertTomlValueToNode(
   const entries = Object.entries(val);
   for (const [childKey, childVal] of entries) {
     children.push(
-      convertTomlValueToNode(childVal, childKey, currentPath, createId, maxArrayItems)
+      convertTomlValueToNode(childVal, childKey, currentPath, createId, maxArrayItems, counter)
     );
   }
 
@@ -542,6 +602,8 @@ export function parseTomlToStructNode(
   const rootPath = [fileName];
 
   const parsedObj = parseTomlToObject(content);
+  const counter: NodeCounter = { count: 0 };
+  countNode(counter);
   const rootNode: StructNode = {
     id: createId(),
     name: fileName,
@@ -552,7 +614,7 @@ export function parseTomlToStructNode(
 
   for (const [key, val] of Object.entries(parsedObj)) {
     rootNode.children.push(
-      convertTomlValueToNode(val, key, rootPath, createId, maxArrayItems)
+      convertTomlValueToNode(val, key, rootPath, createId, maxArrayItems, counter)
     );
   }
 

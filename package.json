@@ -2,7 +2,7 @@
   "name": "structmap-solo",
   "displayName": "StructMap-Solo",
   "description": "%extension.description%",
-  "version": "1.9.6",
+  "version": "1.9.7",
   "icon": "assets/icon.png",
   "publisher": "masanori-satake",
   "repository": {
@@ -11,6 +11,12 @@
   },
   "engines": {
     "vscode": "^1.85.0"
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "%untrustedWorkspaces.description%"
+    }
   },
   "categories": [
     "Visualization",

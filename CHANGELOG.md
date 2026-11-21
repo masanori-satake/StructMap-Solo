@@ -2,6 +2,20 @@
 
 "StructMap-Solo" 拡張機能のすべての注目すべき変更はこのファイルに記録されます。
 
+## [1.9.7] - 2026-11-22
+
+### セキュリティ (Security)
+- Applied the shared 10,000-node budget (MAX_NODES) to the TOML, XML, Markdown, and Env parsers, which previously had no expanded-node limit. Documents exceeding the budget are now rejected with a parse error, consistent with the JSON/YAML behaviour.
+- Changed the TOML range node to split large arrays by recursive binary chunking (like the JSON path) instead of expanding all remaining elements as direct children.
+- Replaced the per-entry linear child search in the Env parser with a Map-based index, so inserting many entries is O(n) overall instead of O(n²).
+- Masked .env values in the TreeView: env-format nodes now show a fixed-length mask in the description instead of the raw value, so secrets are not exposed in screenshots or screen shares.
+- Declared Workspace Trust support explicitly in package.json (`capabilities.untrustedWorkspaces.supported: "limited"`).
+- 共有の 10,000 ノード予算（MAX_NODES）を、これまで展開後ノード数の上限が無かった TOML／XML／Markdown／Env パーサにも適用した。予算を超過するドキュメントは、JSON／YAML と同様にパースエラーとして拒否する。
+- TOML の範囲ノードを、残り全要素を直接の子として展開する方式から、JSON 経路と同じ再帰的な二分チャンク方式に変更した。
+- Env パーサのエントリごとの線形な子探索を Map ベースの索引に置き換え、挿入全体が O(n²) ではなく O(n) になった。
+- TreeView での .env 値の表示をマスクした。env 形式のノードは description に生値を出さず固定長マスクを表示し、スクリーンショットや画面共有での秘密情報の露出を防ぐ。
+- package.json に Workspace Trust の対応を明示宣言した（`capabilities.untrustedWorkspaces.supported: "limited"`）。
+
 ## [1.9.6] - 2026-11-20
 
 ### セキュリティ (Security)

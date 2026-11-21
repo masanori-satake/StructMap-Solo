@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { isParseError, isParseSuccess, ParseError, ParseErrorCode, StructMapService, StructNode } from '../../core';
+import { isParseError, isParseSuccess, ParseError, ParseErrorCode, SourceFormat, StructMapService, StructNode } from '../../core';
 import { DEFAULT_VIEW_STATE, ViewState, ViewStateManager } from '../state/ViewState';
 import { clampMaxArrayItems, clampMaxFileSizeMB } from '../../utils/configClamp';
 
@@ -85,11 +85,13 @@ export class StructTreeItem extends vscode.TreeItem {
   public readonly node?: StructNode;
   public readonly isError: boolean;
   public readonly parent?: StructTreeItem;
+  /** Source format of the tree this item belongs to (used to mask .env values). */
+  public readonly sourceFormat?: SourceFormat;
 
   /**
    * Constructs a StructTreeItem for a StructNode.
    */
-  constructor(node: StructNode, viewState?: ViewState, parent?: StructTreeItem);
+  constructor(node: StructNode, viewState?: ViewState, parent?: StructTreeItem, sourceFormat?: SourceFormat);
   /**
    * Constructs an error/status StructTreeItem with a display message and optional tooltip.
    */
@@ -97,7 +99,8 @@ export class StructTreeItem extends vscode.TreeItem {
   constructor(
     nodeOrLabel: StructNode | string,
     tooltipOrViewState?: string | ViewState,
-    parent?: StructTreeItem
+    parent?: StructTreeItem,
+    sourceFormat?: SourceFormat
   ) {
     if (typeof nodeOrLabel === 'string') {
       super(nodeOrLabel, vscode.TreeItemCollapsibleState.None);
@@ -126,6 +129,7 @@ export class StructTreeItem extends vscode.TreeItem {
 
       const displayLabel = formatNodeLabel(node, viewState);
       super(displayLabel, collapsibleState);
+      this.sourceFormat = sourceFormat;
       this.id = node.id;
       this.node = node;
       this.isError = false;
@@ -134,7 +138,11 @@ export class StructTreeItem extends vscode.TreeItem {
       this.contextValue = 'structMapNodeItem';
 
       if (node.value !== undefined && node.nodeType !== 'root') {
-        this.description = String(node.value);
+        // .env values are usually secrets (API keys, passwords): never show
+        // them in plain text in the tree, where they would be exposed in
+        // screenshots and screen shares. A fixed-length mask is shown
+        // instead so not even the value length leaks.
+        this.description = sourceFormat === 'env' ? '••••••' : String(node.value);
       }
 
       // Command for jump to node in active editor
@@ -292,10 +300,10 @@ export class StructMapTreeProvider implements vscode.TreeDataProvider<StructTree
 
       if (isParseSuccess(parseResult)) {
         if (viewState.showRoot) {
-          return [new StructTreeItem(parseResult.tree.root, viewState)];
+          return [new StructTreeItem(parseResult.tree.root, viewState, undefined, parseResult.tree.sourceFormat)];
         } else {
           return parseResult.tree.root.children.map(
-            (child) => new StructTreeItem(child, viewState)
+            (child) => new StructTreeItem(child, viewState, undefined, parseResult.tree.sourceFormat)
           );
         }
       }
@@ -312,7 +320,7 @@ export class StructMapTreeProvider implements vscode.TreeDataProvider<StructTree
     }
 
     return element.node.children.map(
-      (child) => new StructTreeItem(child, viewState, element)
+      (child) => new StructTreeItem(child, viewState, element, element.sourceFormat)
     );
   }
 }

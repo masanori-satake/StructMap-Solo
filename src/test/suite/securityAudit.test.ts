@@ -1,7 +1,8 @@
 import * as assert from 'assert';
-import { JsonParser, NdjsonParser, ParseErrorCode, YamlParser } from '../../core';
+import { EnvParser, JsonParser, MarkdownParser, NdjsonParser, ParseErrorCode, XmlParser, YamlParser } from '../../core';
 import { StructMapService } from '../../core/services/StructMapService';
 import { JsonSchemaParser } from '../../parsers/jsonSchemaParser';
+import { TomlParser } from '../../parsers/tomlParser';
 import { resolveParserByCustomMappings } from '../../utils/mappingResolver';
 import {
   clampDebounceMs,
@@ -279,6 +280,121 @@ suite('Security Audit 2026-11-20 Regression Tests', () => {
       assert.strictEqual(result.type, 'error');
       if (result.type === 'error') {
         assert.strictEqual(result.code, ParseErrorCode.EMPTY_FILE);
+      }
+    });
+  });
+});
+
+/**
+ * Regression tests for the 2026-11-22 security audit: the shared
+ * MAX_NODES budget (already enforced for JSON/YAML/NDJSON) was not
+ * applied to the TOML, XML, Markdown and Env parsers, the TOML range
+ * node expanded every remaining array element as a direct child, and
+ * Env entry insertion was O(n²) due to a per-entry linear child search.
+ */
+suite('Security Audit 2026-11-22 Regression Tests', () => {
+  suite('Node budget applied to the remaining parsers', () => {
+    test('TOML: flat table with more than 10,000 entries is rejected', () => {
+      const lines: string[] = [];
+      for (let i = 0; i < 20000; i++) {
+        lines.push(`k${i} = ${i}`);
+      }
+      const result = new TomlParser().parse(lines.join('\n'), 'big.toml');
+      assert.strictEqual(result.type, 'error');
+      if (result.type === 'error') {
+        assert.strictEqual(result.code, ParseErrorCode.TOML_PARSE_ERROR);
+        assert.ok(result.message.includes('10000'));
+      }
+    });
+
+    test('TOML: array with more than 10,000 elements is rejected', () => {
+      const content = `arr = [${Array(20000).fill('0').join(',')}]`;
+      const result = new TomlParser().parse(content, 'big.toml');
+      assert.strictEqual(result.type, 'error');
+      if (result.type === 'error') {
+        assert.strictEqual(result.code, ParseErrorCode.TOML_PARSE_ERROR);
+        assert.ok(result.message.includes('10000'));
+      }
+    });
+
+    test('TOML: range node chunks large arrays recursively instead of expanding all elements', () => {
+      const content = `arr = [${Array(200).fill('1').join(',')}]`;
+      const result = new TomlParser().parse(content, 'chunked.toml');
+      assert.strictEqual(result.type, 'success');
+      if (result.type === 'success') {
+        const arrNode = result.tree.root.children.find((n) => n.name === 'arr');
+        assert.ok(arrNode);
+        // 50 direct items + 1 range node.
+        assert.strictEqual(arrNode.children.length, 51);
+        const rangeNode = arrNode.children[50];
+        assert.strictEqual(rangeNode.isRange, true);
+        // The remaining 150 elements are grouped into sub-ranges of 50,
+        // not expanded as 150 direct children of the range node.
+        assert.strictEqual(rangeNode.children.length, 3);
+        for (const subRange of rangeNode.children) {
+          assert.strictEqual(subRange.isRange, true);
+          assert.strictEqual(subRange.children.length, 50);
+        }
+      }
+    });
+
+    test('XML: document with more than 10,000 elements is rejected', () => {
+      const content = `<root>${'<a/>'.repeat(20000)}</root>`;
+      const result = new XmlParser().parse(content, 'big.xml');
+      assert.strictEqual(result.type, 'error');
+      if (result.type === 'error') {
+        assert.strictEqual(result.code, ParseErrorCode.XML_PARSE_ERROR);
+        assert.ok(result.message.includes('10000'));
+      }
+    });
+
+    test('Markdown: document with more than 10,000 headings is rejected', () => {
+      const content = Array(20000).fill('# heading').join('\n');
+      const result = new MarkdownParser().parse(content, 'big.md');
+      assert.strictEqual(result.type, 'error');
+      if (result.type === 'error') {
+        assert.ok(result.message.includes('10000'));
+      }
+    });
+
+    test('Env: file with more than 10,000 entries is rejected', () => {
+      const lines: string[] = [];
+      for (let i = 0; i < 20000; i++) {
+        lines.push(`KEY${i}=value`);
+      }
+      const start = Date.now();
+      const result = new EnvParser().parse(lines.join('\n'), '.env');
+      const elapsed = Date.now() - start;
+      assert.strictEqual(result.type, 'error');
+      if (result.type === 'error') {
+        assert.strictEqual(result.code, ParseErrorCode.ENV_PARSE_ERROR);
+        assert.ok(result.message.includes('10000'));
+      }
+      assert.ok(elapsed < 10000, `parsing took ${elapsed}ms`);
+    });
+
+    test('Env: many entries sharing prefixes still parse correctly (Map-based child lookup)', () => {
+      const lines: string[] = [];
+      for (let i = 0; i < 2000; i++) {
+        lines.push(`GROUP${i % 10}_KEY${i}=v${i}`);
+      }
+      lines.push('DUP_KEY=first');
+      lines.push('DUP_KEY=second');
+      const result = new EnvParser().parse(lines.join('\n'), '.env');
+      assert.strictEqual(result.type, 'success');
+      if (result.type === 'success') {
+        const group3 = result.tree.root.children.find((n) => n.name === 'GROUP3');
+        assert.ok(group3);
+        assert.strictEqual(
+          group3.children.find((n) => n.name === 'KEY3')?.value,
+          'v3'
+        );
+        // Duplicate keys keep the existing overwrite behaviour.
+        const dupGroup = result.tree.root.children.find((n) => n.name === 'DUP');
+        assert.strictEqual(
+          dupGroup?.children.find((n) => n.name === 'KEY')?.value,
+          'second'
+        );
       }
     });
   });

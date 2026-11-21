@@ -1,8 +1,11 @@
 import {
+  createParseError,
   createParseSuccess,
+  ParseErrorCode,
   ParseResult
 } from '../../errors';
 import { StructNode, StructTree, ValueType } from '../../model';
+import { countNode, NodeCounter } from '../common/objectConverter';
 
 interface KeySegment {
   name: string;
@@ -151,11 +154,31 @@ export class EnvParser {
     fileName: string = '.env',
     _maxArrayItems?: number
   ): ParseResult {
+    try {
+      return this.parseInternal(content, fileName, _maxArrayItems);
+    } catch (err) {
+      return createParseError(
+        ParseErrorCode.ENV_PARSE_ERROR,
+        `Env Parse Error: ${(err as Error).message || String(err)}`
+      );
+    }
+  }
+
+  private parseInternal(
+    content: string,
+    fileName: string = '.env',
+    _maxArrayItems?: number
+  ): ParseResult {
     void _maxArrayItems;
     let idCounter = 0;
     const createId = () => `node-${idCounter++}`;
     const rootPath = [fileName];
 
+    // Shared MAX_NODES budget (see objectConverter): the root and every
+    // node created while inserting entries are charged to it, so files
+    // with more entries than the budget are rejected as a parse error.
+    const counter: NodeCounter = { count: 0 };
+    countNode(counter);
     const rootNode: StructNode = {
       id: createId(),
       name: fileName,
@@ -221,7 +244,7 @@ export class EnvParser {
     // Build hierarchical tree
     // Intermediate groups are 'object', leaves are 'value'
     for (const entry of entries) {
-      this.insertEntry(rootNode, entry, rootPath, createId);
+      this.insertEntry(rootNode, entry, rootPath, createId, counter);
     }
 
     const tree: StructTree = {
@@ -232,11 +255,39 @@ export class EnvParser {
     return createParseSuccess(tree);
   }
 
+  /**
+   * Per-parent index of children keyed by segment name. Looking children
+   * up through this Map keeps entry insertion O(1) amortised per segment
+   * instead of a linear `children.find` scan per entry (O(n²) overall).
+   * Keyed by node identity in a WeakMap so indexes are discarded together
+   * with the tree they belong to.
+   */
+  private childIndex = new WeakMap<StructNode, Map<string, StructNode[]>>();
+
+  private registerChild(parent: StructNode, child: StructNode): void {
+    let byName = this.childIndex.get(parent);
+    if (!byName) {
+      byName = new Map<string, StructNode[]>();
+      this.childIndex.set(parent, byName);
+    }
+    const bucket = byName.get(child.name);
+    if (bucket) {
+      bucket.push(child);
+    } else {
+      byName.set(child.name, [child]);
+    }
+  }
+
+  private findChildByName(parent: StructNode, name: string): StructNode[] {
+    return this.childIndex.get(parent)?.get(name) ?? [];
+  }
+
   private insertEntry(
     parent: StructNode,
     entry: EnvEntry,
     currentPath: string[],
-    createId: () => string
+    createId: () => string,
+    counter: NodeCounter
   ): void {
     const { segments, parsedValue, valueType } = entry;
     let curr = parent;
@@ -248,8 +299,9 @@ export class EnvParser {
       const nextPath = [...path, segmentName];
 
       // Match child with same name AND delimiter to distinguish DB_HOST vs DB.HOST
-      let existingChild = curr.children.find((c) => {
-        if (c.name !== segmentName) return false;
+      // (searched within the same-name bucket of the child index, not the
+      // full children array)
+      let existingChild = this.findChildByName(curr, segmentName).find((c) => {
         const attrDelim = c.attributes?.delimiter ?? '';
         // If existing is an object (intermediate) and delimiter matches or either is intermediate
         if (isLeaf) {
@@ -269,6 +321,7 @@ export class EnvParser {
           existingChild.value = parsedValue;
           existingChild.valueType = valueType;
         } else {
+          countNode(counter);
           const leafNode: StructNode = {
             id: createId(),
             name: segmentName,
@@ -280,9 +333,11 @@ export class EnvParser {
             attributes: delimiter ? { delimiter } : undefined
           };
           curr.children.push(leafNode);
+          this.registerChild(curr, leafNode);
         }
       } else {
         if (!existingChild) {
+          countNode(counter);
           existingChild = {
             id: createId(),
             name: segmentName,
@@ -292,6 +347,7 @@ export class EnvParser {
             attributes: delimiter ? { delimiter } : undefined
           };
           curr.children.push(existingChild);
+          this.registerChild(curr, existingChild);
         } else if (existingChild.nodeType === 'value') {
           // If a value node exists at intermediate position, convert to object while retaining value
           existingChild.nodeType = 'object';
