@@ -5,6 +5,7 @@ import {
   ParseResult
 } from '../../errors';
 import { StructNode } from '../../model';
+import { countNode, NodeCounter } from '../common/objectConverter';
 import { FrontmatterParser } from './FrontmatterParser';
 
 /**
@@ -93,6 +94,12 @@ export class MarkdownParser {
     try {
       let idCounter = 0;
 
+      // Shared MAX_NODES budget (see objectConverter): the root, the
+      // frontmatter/content section nodes and every heading node are
+      // charged to it, so documents with more headings than the budget
+      // are rejected as a parse error instead of building a huge tree.
+      const counter: NodeCounter = { count: 0 };
+      countNode(counter);
       const rootNode: StructNode = {
         id: `node-${idCounter++}`,
         name: fileName,
@@ -139,6 +146,7 @@ export class MarkdownParser {
           );
         }
 
+        countNode(counter);
         const frontmatterNode: StructNode = {
           id: `node-${idCounter++}`,
           name: 'Frontmatter (YAML)',
@@ -148,6 +156,7 @@ export class MarkdownParser {
         };
 
         const contentPath = [...rootNode.path, 'Content (Markdown)'];
+        countNode(counter);
         const contentNode: StructNode = {
           id: `node-${idCounter++}`,
           name: 'Content (Markdown)',
@@ -229,6 +238,7 @@ export class MarkdownParser {
 
         const parent = stack[stack.length - 1].node;
 
+        countNode(counter);
         const newNode: StructNode = {
           id: `node-${idCounter++}`,
           name: rawTitle,

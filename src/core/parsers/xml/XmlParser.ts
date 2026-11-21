@@ -5,6 +5,7 @@ import {
   ParseResult
 } from '../../errors';
 import { StructNode, StructTree, ValueType } from '../../model';
+import { countNode, NodeCounter } from '../common/objectConverter';
 
 interface XmlElement {
   tag: string;
@@ -137,6 +138,11 @@ export class XmlParser {
       const createId = () => `node-${idCounter++}`;
       const rootPath = [fileName];
 
+      // Shared MAX_NODES budget (see objectConverter): every StructNode
+      // created for this document is charged to it, so documents whose
+      // expanded tree exceeds the budget are rejected as a parse error.
+      const counter: NodeCounter = { count: 0 };
+      countNode(counter);
       const rootNode: StructNode = {
         id: createId(),
         name: fileName,
@@ -146,7 +152,7 @@ export class XmlParser {
       };
 
       for (const el of rootElements) {
-        const node = this.convertElementToStructNode(el, rootPath, createId);
+        const node = this.convertElementToStructNode(el, rootPath, createId, counter);
         rootNode.children.push(node);
       }
 
@@ -414,8 +420,10 @@ export class XmlParser {
   private convertElementToStructNode(
     element: XmlElement,
     parentPath: string[],
-    createId: () => string
+    createId: () => string,
+    counter: NodeCounter
   ): StructNode {
+    countNode(counter);
     const currentPath = [...parentPath, element.tag];
     const attributeKeys = Object.keys(element.attributes);
     const hasAttributes = attributeKeys.length > 0;
@@ -444,6 +452,7 @@ export class XmlParser {
     // Add attributes as virtual nodes: @attrName
     for (const attrKey of attributeKeys) {
       const attrVal = element.attributes[attrKey];
+      countNode(counter);
       children.push({
         id: createId(),
         name: `@${attrKey}`,
@@ -458,10 +467,11 @@ export class XmlParser {
     // Process children deterministically in order of appearance
     for (const child of element.children) {
       if (isXmlElement(child)) {
-        children.push(this.convertElementToStructNode(child, currentPath, createId));
+        children.push(this.convertElementToStructNode(child, currentPath, createId, counter));
       } else {
         const textVal = child.text.trim();
         if (textVal) {
+          countNode(counter);
           children.push({
             id: createId(),
             name: '#text',

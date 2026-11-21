@@ -1,5 +1,6 @@
 {
   "extension.description": "Local-First, Privacy-First structure visualizer for Markdown, JSON, and YAML without AI.",
+  "untrustedWorkspaces.description": "StructMap only parses and displays the structure of documents you open. In untrusted workspaces, features that rely on workspace settings (such as custom mappings) are limited.",
   "command.copyTree": "Copy Tree",
   "command.copyVisibleTree": "Copy Visible Tree",
   "command.expandAll": "Expand All",

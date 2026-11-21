@@ -317,3 +317,34 @@ suite('StructMapTreeProvider Test Suite', () => {
     assert.strictEqual(provider.getParent(portItem), serverItem);
   });
 });
+
+suite('StructMapTreeProvider .env value masking (2026-11-22 audit)', () => {
+  const service = new StructMapService();
+
+  function createMockEditor(fileName: string, content: string): vscode.TextEditor {
+    return {
+      document: {
+        fileName,
+        getText: () => content,
+      } as vscode.TextDocument,
+    } as vscode.TextEditor;
+  }
+
+  test('.env values are masked in the tree description instead of shown in plain text', () => {
+    const mockEditor = createMockEditor(
+      '.env',
+      'API_KEY=<redacted>\nDB_HOST=localhost'
+    );
+    const provider = new StructMapTreeProvider(service, () => mockEditor);
+    const rootItem = (provider.getChildren() as StructTreeItem[])[0];
+    const groups = provider.getChildren(rootItem) as StructTreeItem[];
+
+    const apiGroup = groups.find((c) => c.node?.name === 'API');
+    assert.ok(apiGroup);
+    const apiChildren = provider.getChildren(apiGroup) as StructTreeItem[];
+    const keyItem = apiChildren.find((c) => c.node?.name === 'KEY');
+    assert.ok(keyItem);
+    assert.strictEqual(keyItem.description, '••••••');
+    assert.notStrictEqual(keyItem.description, 'supersecretvalue');
+  });
+});
